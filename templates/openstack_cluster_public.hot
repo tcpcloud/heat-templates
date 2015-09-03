@@ -1,0 +1,286 @@
+heat_template_version: 2013-05-23
+description: OpenStack cluster with OpenContrail
+parameters:
+  config_host:
+    type: string
+    default: 172.10.10.100
+  key_name:
+    type: string
+  availability_zone:
+    type: string
+  ctl01_name:
+    type: string
+    default: ctl01.workshop.cloudlab.cz
+  ctl02_name:
+    type: string
+    default: ctl02.workshop.cloudlab.cz
+  ctl03_name:
+    type: string
+    default: ctl03.workshop.cloudlab.cz
+  cmp01_name:
+    type: string
+    default: cmp01.workshop.cloudlab.cz
+  cmp02_name:
+    type: string
+    default: cmp02.workshop.cloudlab.cz
+  web01_name:
+    type: string
+    default: web01.workshop.cloudlab.cz
+  mon01_name:
+    type: string
+    default: mon01.workshop.cloudlab.cz
+  mtr01_name:
+    type: string
+    default: mtr01.workshop.cloudlab.cz
+  public_net_id:
+    type: string
+  private_net_id:
+    type: string
+  instance_flavor:
+    type: string
+    description: Instance type for servers
+    default: m1.large
+    constraints:
+      - allowed_values: [m1.tiny, m1.small, m1.medium, m1.large]
+        description: instance_type must be a valid instance type
+  instance_image:
+    type: string
+    description: Image name to use for the servers.
+    default: ubuntu-14-04-x64-1437486976
+  private_net_id:
+    type: string
+resources:
+  ctl01_instance:
+    type: OS::Nova::Server
+    properties:
+      image: { get_param: instance_image }
+      flavor: { get_param: instance_flavor }
+      key_name: { get_param: key_name }
+      name: { get_param: ctl01_name }
+      availability_zone: { get_param: availability_zone }
+      networks:
+      - network: { get_param: private_net_id }
+      security_groups:
+      - default
+      user_data_format: RAW
+      user_data:
+        str_replace:
+          template: |
+            #!/bin/bash
+            echo "id: $node_name" >> /etc/salt/minion
+            echo "master: $config_host" >> /etc/salt/minion
+            echo "Showing node metadata..."
+            salt-call pillar.data
+            service salt-minion restart
+            echo "Running complete state ..."
+            salt-call state.sls linux,openssh,salt
+          params:
+            $node_name: { get_param: ctl01_name }
+            $config_host: { get_param: config_host }
+  ctl02_instance:
+    type: OS::Nova::Server
+    properties:
+      image: { get_param: instance_image }
+      flavor: { get_param: instance_flavor }
+      key_name: { get_param: key_name }
+      name: { get_param: ctl02_name }
+      availability_zone: { get_param: availability_zone }
+      networks:
+      - network: { get_param: private_net_id }
+      security_groups:
+      - default
+      user_data_format: RAW
+      user_data:
+        str_replace:
+          template: |
+            #!/bin/bash
+            echo "id: $node_name" >> /etc/salt/minion
+            echo "master: $config_host" >> /etc/salt/minion
+            echo "Showing node metadata..."
+            salt-call pillar.data
+            service salt-minion restart
+            echo "Running complete state ..."
+            salt-call state.sls linux,openssh,salt
+          params:
+            $node_name: { get_param: ctl02_name }
+            $config_host: { get_param: config_host }
+            $prev_node: {get_attr: [ctl01_instance, first_address]}
+  ctl03_instance:
+    type: OS::Nova::Server
+    properties:
+      image: { get_param: instance_image }
+      flavor: { get_param: instance_flavor }
+      key_name: { get_param: key_name }
+      name: { get_param: ctl03_name }
+      availability_zone: { get_param: availability_zone }
+      networks:
+      - network: { get_param: private_net_id }
+      security_groups:
+      - default
+      user_data_format: RAW
+      user_data:
+        str_replace:
+          template: |
+            #!/bin/bash
+            echo "id: $node_name" >> /etc/salt/minion
+            echo "master: $config_host" >> /etc/salt/minion
+            echo "Showing node metadata..."
+            salt-call pillar.data
+            service salt-minion restart
+            echo "Running complete state ..."
+            salt-call state.sls linux,openssh,salt
+#            salt-call state.highstate
+          params:
+            $node_name: { get_param: ctl03_name }
+            $config_host: { get_param: config_host }
+            $prev_node: {get_attr: [ctl02_instance, first_address]}
+  cmp01_instance:
+    type: OS::Nova::Server
+    properties:
+      image: { get_param: instance_image }
+      flavor: { get_param: instance_flavor }
+      key_name: { get_param: key_name }
+      name: { get_param: cmp01_name }
+      availability_zone: { get_param: availability_zone }
+      networks:
+      - network: { get_param: private_net_id }
+      security_groups:
+      - default
+      user_data_format: RAW
+      user_data:
+        str_replace:
+          template: |
+            #!/bin/bash
+            echo "id: $node_name" >> /etc/salt/minion
+            echo "master: $config_host" >> /etc/salt/minion
+            echo "Showing node metadata..."
+            salt-call pillar.data
+            service salt-minion restart
+            echo "Running complete state ..."
+            salt-call state.sls linux,openssh,salt
+#            salt-call state.highstate
+          params:
+            $node_name: { get_param: cmp01_name }
+            $config_host: { get_param: config_host }
+            $prev_node: {get_attr: [web01_instance, first_address]}
+  cmp02_instance:
+    type: OS::Nova::Server
+    properties:
+      image: { get_param: instance_image }
+      flavor: { get_param: instance_flavor }
+      key_name: { get_param: key_name }
+      name: { get_param: cmp02_name }
+      availability_zone: { get_param: availability_zone }
+      networks:
+      - network: { get_param: private_net_id }
+      security_groups:
+      - default
+      user_data_format: RAW
+      user_data:
+        str_replace:
+          template: |
+            #!/bin/bash
+            echo "id: $node_name" >> /etc/salt/minion
+            echo "master: $config_host" >> /etc/salt/minion
+            echo "Showing node metadata..."
+            salt-call pillar.data
+            service salt-minion restart
+            echo "Running complete state ..."
+            salt-call state.sls linux,openssh,salt
+          params:
+            $node_name: { get_param: cmp02_name }
+            $config_host: { get_param: config_host }
+            $prev_node: {get_attr: [cmp01_instance, first_address]}
+  web01_floating_ip:
+    type: OS::Nova::FloatingIP
+    properties:
+      pool: { get_param: public_net_id }
+  web01_floating_ip_association:
+    type: OS::Nova::FloatingIPAssociation
+    properties:
+      floating_ip: { get_resource: web01_floating_ip }
+      server_id: { get_resource: web01_instance }
+  web01_instance:
+    type: OS::Nova::Server
+    properties:
+      image: { get_param: instance_image }
+      flavor: { get_param: instance_flavor }
+      key_name: { get_param: key_name }
+      name: { get_param: web01_name }
+      availability_zone: { get_param: availability_zone }
+      networks:
+      - network: { get_param: private_net_id }
+      security_groups:
+      - default
+      user_data_format: RAW
+      user_data:
+        str_replace:
+          template: |
+            #!/bin/bash
+            echo "id: $node_name" >> /etc/salt/minion
+            echo "master: $config_host" >> /etc/salt/minion
+            echo "Showing node metadata..."
+            salt-call pillar.data
+            service salt-minion restart
+            echo "Running complete state ..."
+            salt-call state.sls linux,openssh,salt
+          params:
+            $node_name: { get_param: web01_name }
+            $config_host: { get_param: config_host }
+            $prev_node: {get_attr: [ctl03_instance, first_address]}
+  mon01_instance:
+    type: OS::Nova::Server
+    properties:
+      image: { get_param: instance_image }
+      flavor: { get_param: instance_flavor }
+      key_name: { get_param: key_name }
+      name: { get_param: mon01_name }
+      availability_zone: { get_param: availability_zone }
+      networks:
+      - network: { get_param: private_net_id }
+      security_groups:
+      - default
+      user_data_format: RAW
+      user_data:
+        str_replace:
+          template: |
+            #!/bin/bash
+            echo "id: $node_name" >> /etc/salt/minion
+            echo "master: $config_host" >> /etc/salt/minion
+            echo "Showing node metadata..."
+            salt-call pillar.data
+            service salt-minion restart
+            echo "Running complete state ..."
+            salt-call state.sls linux,openssh,salt
+          params:
+            $node_name: { get_param: mon01_name }
+            $config_host: { get_param: config_host }
+            $prev_node: {get_attr: [cmp02_instance, first_address]}
+  mtr01_instance:
+    type: OS::Nova::Server
+    properties:
+      image: { get_param: instance_image }
+      flavor: { get_param: instance_flavor }
+      key_name: { get_param: key_name }
+      name: { get_param: mtr01_name }
+      availability_zone: { get_param: availability_zone }
+      networks:
+      - network: { get_param: private_net_id }
+      security_groups:
+      - default
+      user_data_format: RAW
+      user_data:
+        str_replace:
+          template: |
+            #!/bin/bash
+            echo "id: $node_name" >> /etc/salt/minion
+            echo "master: $config_host" >> /etc/salt/minion
+            echo "Showing node metadata..."
+            salt-call pillar.data
+            service salt-minion restart
+            echo "Running complete state ..."
+            salt-call state.sls linux,openssh,salt
+          params:
+            $node_name: { get_param: mtr01_name }
+            $config_host: { get_param: config_host }
+            $prev_node: {get_attr: [mon01_instance, first_address]}
