@@ -6,8 +6,6 @@ parameters:
     default: 172.10.10.100
   key_name:
     type: string
-  availability_zone:
-    type: string
   ctl01_name:
     type: string
     default: ctl01.workshop.cloudlab.cz
@@ -57,11 +55,10 @@ resources:
       flavor: { get_param: instance_flavor }
       key_name: { get_param: key_name }
       name: { get_param: ctl01_name }
-      availability_zone: { get_param: availability_zone }
       networks:
       - network: { get_param: private_net_id }
       security_groups:
-      - default
+      - workshop
       user_data_format: RAW
       user_data:
         str_replace:
@@ -84,11 +81,10 @@ resources:
       flavor: { get_param: instance_flavor }
       key_name: { get_param: key_name }
       name: { get_param: ctl02_name }
-      availability_zone: { get_param: availability_zone }
       networks:
       - network: { get_param: private_net_id }
       security_groups:
-      - default
+      - workshop
       user_data_format: RAW
       user_data:
         str_replace:
@@ -112,11 +108,10 @@ resources:
       flavor: { get_param: instance_flavor }
       key_name: { get_param: key_name }
       name: { get_param: ctl03_name }
-      availability_zone: { get_param: availability_zone }
       networks:
       - network: { get_param: private_net_id }
       security_groups:
-      - default
+      - workshop
       user_data_format: RAW
       user_data:
         str_replace:
@@ -141,11 +136,10 @@ resources:
       flavor: { get_param: instance_flavor }
       key_name: { get_param: key_name }
       name: { get_param: cmp01_name }
-      availability_zone: { get_param: availability_zone }
       networks:
       - network: { get_param: private_net_id }
       security_groups:
-      - default
+      - workshop
       user_data_format: RAW
       user_data:
         str_replace:
@@ -170,11 +164,10 @@ resources:
       flavor: { get_param: instance_flavor }
       key_name: { get_param: key_name }
       name: { get_param: cmp02_name }
-      availability_zone: { get_param: availability_zone }
       networks:
       - network: { get_param: private_net_id }
       security_groups:
-      - default
+      - workshop
       user_data_format: RAW
       user_data:
         str_replace:
@@ -207,11 +200,10 @@ resources:
       flavor: { get_param: instance_flavor }
       key_name: { get_param: key_name }
       name: { get_param: web01_name }
-      availability_zone: { get_param: availability_zone }
       networks:
       - network: { get_param: private_net_id }
       security_groups:
-      - default
+      - workshop
       user_data_format: RAW
       user_data:
         str_replace:
@@ -235,11 +227,10 @@ resources:
       flavor: { get_param: instance_flavor }
       key_name: { get_param: key_name }
       name: { get_param: mon01_name }
-      availability_zone: { get_param: availability_zone }
       networks:
       - network: { get_param: private_net_id }
       security_groups:
-      - default
+      - workshop
       user_data_format: RAW
       user_data:
         str_replace:
@@ -263,11 +254,10 @@ resources:
       flavor: { get_param: instance_flavor }
       key_name: { get_param: key_name }
       name: { get_param: mtr01_name }
-      availability_zone: { get_param: availability_zone }
       networks:
       - network: { get_param: private_net_id }
       security_groups:
-      - default
+      - workshop
       user_data_format: RAW
       user_data:
         str_replace:
