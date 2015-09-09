@@ -173,14 +173,14 @@ resources:
             service salt-minion restart
 
             echo "Showing system info and metadata ..."
-            salt-call grains.items
-            salt-call pillar.data
+            salt-call --no-color grains.items
+            salt-call --no-color pillar.data
             reclass -n $node_name
 
             echo "Running complete state ..."
-            salt-call state.sls linux openssh salt.minion
-            salt-call state.sls salt.master
-            salt-call state.highstate
+            salt-call --no-color state.sls linux openssh salt.minion
+            salt-call --no-color state.sls salt.master
+            salt-call --no-color state.highstate
           params:
             $node_name: { get_param: cfg01_name }
             $reclass_address: { get_param: reclass_address }

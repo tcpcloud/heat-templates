@@ -77,11 +77,12 @@ resources:
 
             echo "id: $node_name" >> /etc/salt/minion
             echo "master: $config_host" >> /etc/salt/minion
-            echo "Showing node metadata..."
-            salt-call pillar.data
+            rm -f /etc/salt/pki/minion/minion_master.pub
             service salt-minion restart
+            echo "Showing node metadata..."
+            salt-call --no-color pillar.data
             echo "Running complete state ..."
-            salt-call state.sls linux,openssh,salt
+            salt-call --no-color state.sls linux,openssh,salt
           params:
             $node_name: { get_param: ctl01_name }
             $config_host: { get_param: config_host }
@@ -114,11 +115,12 @@ resources:
 
             echo "id: $node_name" >> /etc/salt/minion
             echo "master: $config_host" >> /etc/salt/minion
-            echo "Showing node metadata..."
-            salt-call pillar.data
+            rm -f /etc/salt/pki/minion/minion_master.pub
             service salt-minion restart
+            echo "Showing node metadata..."
+            salt-call --no-color pillar.data
             echo "Running complete state ..."
-            salt-call state.sls linux,openssh,salt
+            salt-call --no-color state.sls linux,openssh,salt
           params:
             $node_name: { get_param: ctl02_name }
             $config_host: { get_param: config_host }
@@ -152,12 +154,13 @@ resources:
 
             echo "id: $node_name" >> /etc/salt/minion
             echo "master: $config_host" >> /etc/salt/minion
-            echo "Showing node metadata..."
-            salt-call pillar.data
+            rm -f /etc/salt/pki/minion/minion_master.pub
             service salt-minion restart
+            echo "Showing node metadata..."
+            salt-call --no-color pillar.data
             echo "Running complete state ..."
-            salt-call state.sls linux,openssh,salt
-#            salt-call state.highstate
+            salt-call --no-color state.sls linux,openssh,salt
+#            salt-call --no-color state.highstate
           params:
             $node_name: { get_param: ctl03_name }
             $config_host: { get_param: config_host }
@@ -191,12 +194,13 @@ resources:
 
             echo "id: $node_name" >> /etc/salt/minion
             echo "master: $config_host" >> /etc/salt/minion
-            echo "Showing node metadata..."
-            salt-call pillar.data
+            rm -f /etc/salt/pki/minion/minion_master.pub
             service salt-minion restart
+            echo "Showing node metadata..."
+            salt-call --no-color pillar.data
             echo "Running complete state ..."
-            salt-call state.sls linux,openssh,salt
-#            salt-call state.highstate
+            salt-call --no-color state.sls linux,openssh,salt
+#            salt-call --no-color state.highstate
           params:
             $node_name: { get_param: cmp01_name }
             $config_host: { get_param: config_host }
@@ -230,11 +234,12 @@ resources:
 
             echo "id: $node_name" >> /etc/salt/minion
             echo "master: $config_host" >> /etc/salt/minion
-            echo "Showing node metadata..."
-            salt-call pillar.data
+            rm -f /etc/salt/pki/minion/minion_master.pub
             service salt-minion restart
+            echo "Showing node metadata..."
+            salt-call --no-color pillar.data
             echo "Running complete state ..."
-            salt-call state.sls linux,openssh,salt
+            salt-call --no-color state.sls linux,openssh,salt
           params:
             $node_name: { get_param: cmp02_name }
             $config_host: { get_param: config_host }
@@ -277,11 +282,12 @@ resources:
 
             echo "id: $node_name" >> /etc/salt/minion
             echo "master: $config_host" >> /etc/salt/minion
-            echo "Showing node metadata..."
-            salt-call pillar.data
+            rm -f /etc/salt/pki/minion/minion_master.pub
             service salt-minion restart
+            echo "Showing node metadata..."
+            salt-call --no-color pillar.data
             echo "Running complete state ..."
-            salt-call state.sls linux,openssh,salt
+            salt-call --no-color state.sls linux,openssh,salt
           params:
             $node_name: { get_param: web01_name }
             $config_host: { get_param: config_host }
@@ -315,11 +321,12 @@ resources:
 
             echo "id: $node_name" >> /etc/salt/minion
             echo "master: $config_host" >> /etc/salt/minion
-            echo "Showing node metadata..."
-            salt-call pillar.data
+            rm -f /etc/salt/pki/minion/minion_master.pub
             service salt-minion restart
+            echo "Showing node metadata..."
+            salt-call --no-color pillar.data
             echo "Running complete state ..."
-            salt-call state.sls linux,openssh,salt
+            salt-call --no-color state.sls linux,openssh,salt
           params:
             $node_name: { get_param: mon01_name }
             $config_host: { get_param: config_host }
@@ -353,11 +360,12 @@ resources:
 
             echo "id: $node_name" >> /etc/salt/minion
             echo "master: $config_host" >> /etc/salt/minion
-            echo "Showing node metadata..."
-            salt-call pillar.data
+            rm -f /etc/salt/pki/minion/minion_master.pub
             service salt-minion restart
+            echo "Showing node metadata..."
+            salt-call --no-color pillar.data
             echo "Running complete state ..."
-            salt-call state.sls linux,openssh,salt
+            salt-call --no-color state.sls linux,openssh,salt
           params:
             $node_name: { get_param: mtr01_name }
             $config_host: { get_param: config_host }
