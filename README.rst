@@ -7,7 +7,8 @@ Repository of various Heat templates.
 Usage
 =====
 
-- setup environment file, eg. ``env/salt_single_public.env``
+- setup environment file, eg. ``env/salt_single_public.env``, look at example
+  file first
 - source credentials and required environment variables. You can download
   openrc file from Horizon dashboard.
 
