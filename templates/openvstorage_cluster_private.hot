@@ -1,0 +1,231 @@
+heat_template_version: 2013-05-23
+description: Open vStorage cluster
+parameters:
+  config_host:
+    type: string
+    default: 172.10.10.100
+  key_name:
+    type: string
+  ovscmp01_name:
+    type: string
+    default: ovscmp01.workshop.cloudlab.cz
+  ovscmp02_name:
+    type: string
+    default: ovscmp02.workshop.cloudlab.cz
+  ovscmp03_name:
+    type: string
+    default: ovscmp03.workshop.cloudlab.cz
+  ovscmp04_name:
+    type: string
+    default: ovscmp04.workshop.cloudlab.cz
+  private_net_id:
+    type: string
+  volume_size:
+    type: number
+    description: Additional volume size for OVS backend
+    default: 40
+  instance_flavor:
+    type: string
+    description: Instance type for servers
+    default: m1.large
+    constraints:
+      - allowed_values: [m1.tiny, m1.small, m1.medium, m1.large]
+        description: instance_type must be a valid instance type
+  instance_image:
+    type: string
+    description: Image name to use for the servers.
+    default: ubuntu-14-04-x64-1437486976
+  private_net_id:
+    type: string
+resources:
+  ovscmp01_volume:
+    type: OS::Cinder::Volume
+    properties:
+      name: { get_param: ovscmp01_name }
+      size: { get_param: volume_size }
+  ovscmp01_instance:
+    type: OS::Nova::Server
+    properties:
+      image: { get_param: instance_image }
+      flavor: { get_param: instance_flavor }
+      key_name: { get_param: key_name }
+      name: { get_param: ovscmp01_name }
+      block_device_mapping:
+        - volume_id: { get_resource: ovscmp01_volume }
+          device_name: vdb
+      networks:
+      - network: { get_param: private_net_id }
+      security_groups:
+      - default
+      - workshop
+      user_data_format: RAW
+      user_data:
+        str_replace:
+          template: |
+            #!/bin/bash
+            echo "Preparing base OS"
+            which wget >/dev/null || (apt-get update; apt-get install -y wget)
+
+            echo "deb [arch=amd64] http://apt.tcpcloud.eu/nightly/ trusty main security extra tcp tcp-salt" > /etc/apt/sources.list
+            wget -O - http://apt.tcpcloud.eu/public.gpg | apt-key add -
+
+            apt-get clean
+            apt-get update
+            apt-get install -y salt-minion
+
+            echo "id: $node_name" >> /etc/salt/minion
+            echo "master: $config_host" >> /etc/salt/minion
+            rm -f /etc/salt/pki/minion/minion_master.pub
+            service salt-minion restart
+            echo "Showing node metadata..."
+            salt-call --no-color pillar.data
+            echo "Running complete state ..."
+            salt-call --no-color state.sls linux,openssh,salt
+#            salt-call --no-color state.highstate
+          params:
+            $node_name: { get_param: ovscmp01_name }
+            $config_host: { get_param: config_host }
+  ovscmp02_volume:
+    type: OS::Cinder::Volume
+    properties:
+      name: { get_param: ovscmp02_name }
+      size: { get_param: volume_size }
+  ovscmp02_instance:
+    type: OS::Nova::Server
+    properties:
+      image: { get_param: instance_image }
+      flavor: { get_param: instance_flavor }
+      key_name: { get_param: key_name }
+      name: { get_param: ovscmp02_name }
+      block_device_mapping:
+        - volume_id: { get_resource: ovscmp02_volume }
+          device_name: vdb
+      networks:
+      - network: { get_param: private_net_id }
+      security_groups:
+      - default
+      - workshop
+      user_data_format: RAW
+      user_data:
+        str_replace:
+          template: |
+            #!/bin/bash
+            echo "Preparing base OS"
+            which wget >/dev/null || (apt-get update; apt-get install -y wget)
+
+            echo "deb [arch=amd64] http://apt.tcpcloud.eu/nightly/ trusty main security extra tcp tcp-salt" > /etc/apt/sources.list
+            wget -O - http://apt.tcpcloud.eu/public.gpg | apt-key add -
+
+            apt-get clean
+            apt-get update
+            apt-get install -y salt-minion
+
+            echo "id: $node_name" >> /etc/salt/minion
+            echo "master: $config_host" >> /etc/salt/minion
+            rm -f /etc/salt/pki/minion/minion_master.pub
+            service salt-minion restart
+            echo "Showing node metadata..."
+            salt-call --no-color pillar.data
+            echo "Running complete state ..."
+            salt-call --no-color state.sls linux,openssh,salt
+#            salt-call --no-color state.highstate
+          params:
+            $node_name: { get_param: ovscmp02_name }
+            $config_host: { get_param: config_host }
+            $prev_node: {get_attr: [ovscmp01_instance, first_address]}
+  ovscmp03_volume:
+    type: OS::Cinder::Volume
+    properties:
+      name: { get_param: ovscmp03_name }
+      size: { get_param: volume_size }
+  ovscmp03_instance:
+    type: OS::Nova::Server
+    properties:
+      image: { get_param: instance_image }
+      flavor: { get_param: instance_flavor }
+      key_name: { get_param: key_name }
+      name: { get_param: ovscmp03_name }
+      block_device_mapping:
+        - volume_id: { get_resource: ovscmp03_volume }
+          device_name: vdb
+      networks:
+      - network: { get_param: private_net_id }
+      security_groups:
+      - default
+      - workshop
+      user_data_format: RAW
+      user_data:
+        str_replace:
+          template: |
+            #!/bin/bash
+            echo "Preparing base OS"
+            which wget >/dev/null || (apt-get update; apt-get install -y wget)
+
+            echo "deb [arch=amd64] http://apt.tcpcloud.eu/nightly/ trusty main security extra tcp tcp-salt" > /etc/apt/sources.list
+            wget -O - http://apt.tcpcloud.eu/public.gpg | apt-key add -
+
+            apt-get clean
+            apt-get update
+            apt-get install -y salt-minion
+
+            echo "id: $node_name" >> /etc/salt/minion
+            echo "master: $config_host" >> /etc/salt/minion
+            rm -f /etc/salt/pki/minion/minion_master.pub
+            service salt-minion restart
+            echo "Showing node metadata..."
+            salt-call --no-color pillar.data
+            echo "Running complete state ..."
+            salt-call --no-color state.sls linux,openssh,salt
+#            salt-call --no-color state.highstate
+          params:
+            $node_name: { get_param: ovscmp03_name }
+            $config_host: { get_param: config_host }
+            $prev_node: {get_attr: [ovscmp02_instance, first_address]}
+  ovscmp04_volume:
+    type: OS::Cinder::Volume
+    properties:
+      name: { get_param: ovscmp04_name }
+      size: { get_param: volume_size }
+  ovscmp04_instance:
+    type: OS::Nova::Server
+    properties:
+      image: { get_param: instance_image }
+      flavor: { get_param: instance_flavor }
+      key_name: { get_param: key_name }
+      name: { get_param: ovscmp04_name }
+      block_device_mapping:
+        - volume_id: { get_resource: ovscmp04_volume }
+          device_name: vdb
+      networks:
+      - network: { get_param: private_net_id }
+      security_groups:
+      - default
+      - workshop
+      user_data_format: RAW
+      user_data:
+        str_replace:
+          template: |
+            #!/bin/bash
+            echo "Preparing base OS"
+            which wget >/dev/null || (apt-get update; apt-get install -y wget)
+
+            echo "deb [arch=amd64] http://apt.tcpcloud.eu/nightly/ trusty main security extra tcp tcp-salt" > /etc/apt/sources.list
+            wget -O - http://apt.tcpcloud.eu/public.gpg | apt-key add -
+
+            apt-get clean
+            apt-get update
+            apt-get install -y salt-minion
+
+            echo "id: $node_name" >> /etc/salt/minion
+            echo "master: $config_host" >> /etc/salt/minion
+            rm -f /etc/salt/pki/minion/minion_master.pub
+            service salt-minion restart
+            echo "Showing node metadata..."
+            salt-call --no-color pillar.data
+            echo "Running complete state ..."
+            salt-call --no-color state.sls linux,openssh,salt
+#            salt-call --no-color state.highstate
+          params:
+            $node_name: { get_param: ovscmp04_name }
+            $config_host: { get_param: config_host }
+            $prev_node: {get_attr: [ovscmp03_instance, first_address]}

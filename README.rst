@@ -28,7 +28,11 @@ Stacks
 .. list-table::
    :stub-columns: 1
 
-   *  - openstack_cluster_public
-      - Deploy OpenStack cluster with OpenContrail
    *  - salt_single_public
       - Base stack which deploys network and single-node Salt master
+   *  - openstack_cluster_public
+      - Deploy OpenStack cluster with OpenContrail, requires
+        ``salt_single_public``
+   *  - openvstorage_cluster_private
+      - Deploy Open vStorage infrastructure on top of
+        ``openstack_cluster_public``
