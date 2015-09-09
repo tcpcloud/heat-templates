@@ -85,9 +85,9 @@ resources:
       name: workshop
       description: Workshop security group
       rules:
-        - protocol: icmp
-          remote_ip_prefix: 0.0.0.0/0
         - protocol: tcp
+          remote_ip_prefix: 0.0.0.0/0
+        - protocol: icmp
           remote_ip_prefix: 0.0.0.0/0
   cfg01_floating_ip:
     type: OS::Nova::FloatingIP
@@ -108,6 +108,7 @@ resources:
       networks:
       - network: { get_resource: private_net }
       security_groups:
+      - default
       - { get_resource: workshop_security_group }
       user_data_format: RAW
       user_data:
@@ -159,6 +160,7 @@ resources:
             EOF
 
             echo "Configuring salt minion ..."
+            apt-get install -y salt-minion
             [ ! -d /etc/salt/minion.d ] && mkdir -p /etc/salt/minion.d
             cat << "EOF" >> /etc/salt/minion.d/minion.conf
             id: $node_name
@@ -167,6 +169,7 @@ resources:
 
             echo "Restarting services ..."
             service salt-master restart
+            rm -f /etc/salt/pki/minion/minion_master.pub
             service salt-minion restart
 
             echo "Showing system info and metadata ..."

@@ -58,12 +58,23 @@ resources:
       networks:
       - network: { get_param: private_net_id }
       security_groups:
+      - default
       - workshop
       user_data_format: RAW
       user_data:
         str_replace:
           template: |
             #!/bin/bash
+            echo "Preparing base OS"
+            which wget >/dev/null || (apt-get update; apt-get install -y wget)
+
+            echo "deb [arch=amd64] http://apt.tcpcloud.eu/nightly/ trusty main security extra tcp tcp-salt" > /etc/apt/sources.list
+            wget -O - http://apt.tcpcloud.eu/public.gpg | apt-key add -
+
+            apt-get clean
+            apt-get update
+            apt-get install -y salt-minion
+
             echo "id: $node_name" >> /etc/salt/minion
             echo "master: $config_host" >> /etc/salt/minion
             echo "Showing node metadata..."
@@ -84,12 +95,23 @@ resources:
       networks:
       - network: { get_param: private_net_id }
       security_groups:
+      - default
       - workshop
       user_data_format: RAW
       user_data:
         str_replace:
           template: |
             #!/bin/bash
+            echo "Preparing base OS"
+            which wget >/dev/null || (apt-get update; apt-get install -y wget)
+
+            echo "deb [arch=amd64] http://apt.tcpcloud.eu/nightly/ trusty main security extra tcp tcp-salt" > /etc/apt/sources.list
+            wget -O - http://apt.tcpcloud.eu/public.gpg | apt-key add -
+
+            apt-get clean
+            apt-get update
+            apt-get install -y salt-minion
+
             echo "id: $node_name" >> /etc/salt/minion
             echo "master: $config_host" >> /etc/salt/minion
             echo "Showing node metadata..."
@@ -111,12 +133,23 @@ resources:
       networks:
       - network: { get_param: private_net_id }
       security_groups:
+      - default
       - workshop
       user_data_format: RAW
       user_data:
         str_replace:
           template: |
             #!/bin/bash
+            echo "Preparing base OS"
+            which wget >/dev/null || (apt-get update; apt-get install -y wget)
+
+            echo "deb [arch=amd64] http://apt.tcpcloud.eu/nightly/ trusty main security extra tcp tcp-salt" > /etc/apt/sources.list
+            wget -O - http://apt.tcpcloud.eu/public.gpg | apt-key add -
+
+            apt-get clean
+            apt-get update
+            apt-get install -y salt-minion
+
             echo "id: $node_name" >> /etc/salt/minion
             echo "master: $config_host" >> /etc/salt/minion
             echo "Showing node metadata..."
@@ -139,12 +172,23 @@ resources:
       networks:
       - network: { get_param: private_net_id }
       security_groups:
+      - default
       - workshop
       user_data_format: RAW
       user_data:
         str_replace:
           template: |
             #!/bin/bash
+            echo "Preparing base OS"
+            which wget >/dev/null || (apt-get update; apt-get install -y wget)
+
+            echo "deb [arch=amd64] http://apt.tcpcloud.eu/nightly/ trusty main security extra tcp tcp-salt" > /etc/apt/sources.list
+            wget -O - http://apt.tcpcloud.eu/public.gpg | apt-key add -
+
+            apt-get clean
+            apt-get update
+            apt-get install -y salt-minion
+
             echo "id: $node_name" >> /etc/salt/minion
             echo "master: $config_host" >> /etc/salt/minion
             echo "Showing node metadata..."
@@ -167,12 +211,23 @@ resources:
       networks:
       - network: { get_param: private_net_id }
       security_groups:
+      - default
       - workshop
       user_data_format: RAW
       user_data:
         str_replace:
           template: |
             #!/bin/bash
+            echo "Preparing base OS"
+            which wget >/dev/null || (apt-get update; apt-get install -y wget)
+
+            echo "deb [arch=amd64] http://apt.tcpcloud.eu/nightly/ trusty main security extra tcp tcp-salt" > /etc/apt/sources.list
+            wget -O - http://apt.tcpcloud.eu/public.gpg | apt-key add -
+
+            apt-get clean
+            apt-get update
+            apt-get install -y salt-minion
+
             echo "id: $node_name" >> /etc/salt/minion
             echo "master: $config_host" >> /etc/salt/minion
             echo "Showing node metadata..."
@@ -203,12 +258,23 @@ resources:
       networks:
       - network: { get_param: private_net_id }
       security_groups:
+      - default
       - workshop
       user_data_format: RAW
       user_data:
         str_replace:
           template: |
             #!/bin/bash
+            echo "Preparing base OS"
+            which wget >/dev/null || (apt-get update; apt-get install -y wget)
+
+            echo "deb [arch=amd64] http://apt.tcpcloud.eu/nightly/ trusty main security extra tcp tcp-salt" > /etc/apt/sources.list
+            wget -O - http://apt.tcpcloud.eu/public.gpg | apt-key add -
+
+            apt-get clean
+            apt-get update
+            apt-get install -y salt-minion
+
             echo "id: $node_name" >> /etc/salt/minion
             echo "master: $config_host" >> /etc/salt/minion
             echo "Showing node metadata..."
@@ -230,12 +296,23 @@ resources:
       networks:
       - network: { get_param: private_net_id }
       security_groups:
+      - default
       - workshop
       user_data_format: RAW
       user_data:
         str_replace:
           template: |
             #!/bin/bash
+            echo "Preparing base OS"
+            which wget >/dev/null || (apt-get update; apt-get install -y wget)
+
+            echo "deb [arch=amd64] http://apt.tcpcloud.eu/nightly/ trusty main security extra tcp tcp-salt" > /etc/apt/sources.list
+            wget -O - http://apt.tcpcloud.eu/public.gpg | apt-key add -
+
+            apt-get clean
+            apt-get update
+            apt-get install -y salt-minion
+
             echo "id: $node_name" >> /etc/salt/minion
             echo "master: $config_host" >> /etc/salt/minion
             echo "Showing node metadata..."
@@ -257,12 +334,23 @@ resources:
       networks:
       - network: { get_param: private_net_id }
       security_groups:
+      - default
       - workshop
       user_data_format: RAW
       user_data:
         str_replace:
           template: |
             #!/bin/bash
+            echo "Preparing base OS"
+            which wget >/dev/null || (apt-get update; apt-get install -y wget)
+
+            echo "deb [arch=amd64] http://apt.tcpcloud.eu/nightly/ trusty main security extra tcp tcp-salt" > /etc/apt/sources.list
+            wget -O - http://apt.tcpcloud.eu/public.gpg | apt-key add -
+
+            apt-get clean
+            apt-get update
+            apt-get install -y salt-minion
+
             echo "id: $node_name" >> /etc/salt/minion
             echo "master: $config_host" >> /etc/salt/minion
             echo "Showing node metadata..."
