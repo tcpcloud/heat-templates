@@ -30,9 +30,6 @@ parameters:
   mtr01_name:
     type: string
     default: mtr01.workshop.cloudlab.cz
-  cluster_vip_address:
-    type: string
-    default: 172.10.10.254
   public_net_id:
     type: string
   private_net_id:
@@ -51,15 +48,6 @@ parameters:
   private_net_id:
     type: string
 resources:
-  ctl01_port:
-    type: OS::Neutron::Port
-    properties:
-      network_id: { get_param: private_net_id }
-      allowed_address_pairs:
-        - ip_address: { get_param: cluster_vip_address }
-      security_groups:
-        - default
-        - workshop
   ctl01_instance:
     type: OS::Nova::Server
     properties:
@@ -68,7 +56,10 @@ resources:
       key_name: { get_param: key_name }
       name: { get_param: ctl01_name }
       networks:
-      - port: { get_resource: ctl01_port }
+      - network: { get_param: private_net_id }
+      security_groups:
+      - default
+      - workshop
       user_data_format: RAW
       user_data:
         str_replace:
@@ -95,15 +86,6 @@ resources:
           params:
             $node_name: { get_param: ctl01_name }
             $config_host: { get_param: config_host }
-  ctl02_port:
-    type: OS::Neutron::Port
-    properties:
-      network_id: { get_param: private_net_id }
-      allowed_address_pairs:
-        - ip_address: { get_param: cluster_vip_address }
-      security_groups:
-        - default
-        - workshop
   ctl02_instance:
     type: OS::Nova::Server
     properties:
@@ -112,7 +94,10 @@ resources:
       key_name: { get_param: key_name }
       name: { get_param: ctl02_name }
       networks:
-      - port: { get_resource: ctl02_port }
+      - network: { get_param: private_net_id }
+      security_groups:
+      - default
+      - workshop
       user_data_format: RAW
       user_data:
         str_replace:
@@ -140,15 +125,6 @@ resources:
             $node_name: { get_param: ctl02_name }
             $config_host: { get_param: config_host }
             $prev_node: {get_attr: [ctl01_instance, first_address]}
-  ctl03_port:
-    type: OS::Neutron::Port
-    properties:
-      network_id: { get_param: private_net_id }
-      allowed_address_pairs:
-        - ip_address: { get_param: cluster_vip_address }
-      security_groups:
-        - default
-        - workshop
   ctl03_instance:
     type: OS::Nova::Server
     properties:
@@ -157,7 +133,10 @@ resources:
       key_name: { get_param: key_name }
       name: { get_param: ctl03_name }
       networks:
-      - port: { get_resource: ctl03_port }
+      - network: { get_param: private_net_id }
+      security_groups:
+      - default
+      - workshop
       user_data_format: RAW
       user_data:
         str_replace:
