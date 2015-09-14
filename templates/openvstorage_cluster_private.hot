@@ -38,6 +38,15 @@ parameters:
   private_net_id:
     type: string
 resources:
+  ovscmp01_port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_param: private_net_id }
+      fixed_ips:
+        - ip_address: 172.10.10.109
+      security_groups:
+        - default
+        - workshop
   ovscmp01_volume:
     type: OS::Cinder::Volume
     properties:
@@ -54,10 +63,7 @@ resources:
         - volume_id: { get_resource: ovscmp01_volume }
           device_name: vdb
       networks:
-      - network: { get_param: private_net_id }
-      security_groups:
-      - default
-      - workshop
+        - port: { get_resource: ovscmp01_port }
       user_data_format: RAW
       user_data:
         str_replace:
@@ -85,6 +91,15 @@ resources:
           params:
             $node_name: { get_param: ovscmp01_name }
             $config_host: { get_param: config_host }
+  ovscmp02_port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_param: private_net_id }
+      fixed_ips:
+        - ip_address: 172.10.10.110
+      security_groups:
+        - default
+        - workshop
   ovscmp02_volume:
     type: OS::Cinder::Volume
     properties:
@@ -101,10 +116,7 @@ resources:
         - volume_id: { get_resource: ovscmp02_volume }
           device_name: vdb
       networks:
-      - network: { get_param: private_net_id }
-      security_groups:
-      - default
-      - workshop
+        - port: { get_resource: ovscmp02_port }
       user_data_format: RAW
       user_data:
         str_replace:
@@ -132,7 +144,15 @@ resources:
           params:
             $node_name: { get_param: ovscmp02_name }
             $config_host: { get_param: config_host }
-            $prev_node: {get_attr: [ovscmp01_instance, first_address]}
+  ovscmp03_port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_param: private_net_id }
+      fixed_ips:
+        - ip_address: 172.10.10.111
+      security_groups:
+        - default
+        - workshop
   ovscmp03_volume:
     type: OS::Cinder::Volume
     properties:
@@ -149,10 +169,7 @@ resources:
         - volume_id: { get_resource: ovscmp03_volume }
           device_name: vdb
       networks:
-      - network: { get_param: private_net_id }
-      security_groups:
-      - default
-      - workshop
+        - port: { get_resource: ovscmp03_port }
       user_data_format: RAW
       user_data:
         str_replace:
@@ -180,7 +197,15 @@ resources:
           params:
             $node_name: { get_param: ovscmp03_name }
             $config_host: { get_param: config_host }
-            $prev_node: {get_attr: [ovscmp02_instance, first_address]}
+  ovscmp04_port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_param: private_net_id }
+      fixed_ips:
+        - ip_address: 172.10.10.112
+      security_groups:
+        - default
+        - workshop
   ovscmp04_volume:
     type: OS::Cinder::Volume
     properties:
@@ -197,10 +222,7 @@ resources:
         - volume_id: { get_resource: ovscmp04_volume }
           device_name: vdb
       networks:
-      - network: { get_param: private_net_id }
-      security_groups:
-      - default
-      - workshop
+        - port: { get_resource: ovscmp04_port }
       user_data_format: RAW
       user_data:
         str_replace:
@@ -228,4 +250,3 @@ resources:
           params:
             $node_name: { get_param: ovscmp04_name }
             $config_host: { get_param: config_host }
-            $prev_node: {get_attr: [ovscmp03_instance, first_address]}

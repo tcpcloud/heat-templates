@@ -55,6 +55,8 @@ resources:
     type: OS::Neutron::Port
     properties:
       network_id: { get_param: private_net_id }
+      fixed_ips:
+        - ip_address: 172.10.10.101
       allowed_address_pairs:
         - ip_address: { get_param: cluster_vip_address }
       security_groups:
@@ -99,6 +101,8 @@ resources:
     type: OS::Neutron::Port
     properties:
       network_id: { get_param: private_net_id }
+      fixed_ips:
+        - ip_address: 172.10.10.102
       allowed_address_pairs:
         - ip_address: { get_param: cluster_vip_address }
       security_groups:
@@ -139,11 +143,12 @@ resources:
           params:
             $node_name: { get_param: ctl02_name }
             $config_host: { get_param: config_host }
-            $prev_node: {get_attr: [ctl01_instance, first_address]}
   ctl03_port:
     type: OS::Neutron::Port
     properties:
       network_id: { get_param: private_net_id }
+      fixed_ips:
+        - ip_address: 172.10.10.103
       allowed_address_pairs:
         - ip_address: { get_param: cluster_vip_address }
       security_groups:
@@ -185,7 +190,15 @@ resources:
           params:
             $node_name: { get_param: ctl03_name }
             $config_host: { get_param: config_host }
-            $prev_node: {get_attr: [ctl02_instance, first_address]}
+  cmp01_port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_param: private_net_id }
+      fixed_ips:
+        - ip_address: 172.10.10.105
+      security_groups:
+        - default
+        - workshop
   cmp01_instance:
     type: OS::Nova::Server
     properties:
@@ -194,10 +207,7 @@ resources:
       key_name: { get_param: key_name }
       name: { get_param: cmp01_name }
       networks:
-      - network: { get_param: private_net_id }
-      security_groups:
-      - default
-      - workshop
+      - port: { get_resource: cmp01_port }
       user_data_format: RAW
       user_data:
         str_replace:
@@ -225,7 +235,15 @@ resources:
           params:
             $node_name: { get_param: cmp01_name }
             $config_host: { get_param: config_host }
-            $prev_node: {get_attr: [web01_instance, first_address]}
+  cmp02_port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_param: private_net_id }
+      fixed_ips:
+        - ip_address: 172.10.10.106
+      security_groups:
+        - default
+        - workshop
   cmp02_instance:
     type: OS::Nova::Server
     properties:
@@ -234,10 +252,7 @@ resources:
       key_name: { get_param: key_name }
       name: { get_param: cmp02_name }
       networks:
-      - network: { get_param: private_net_id }
-      security_groups:
-      - default
-      - workshop
+      - port: { get_resource: cmp02_port }
       user_data_format: RAW
       user_data:
         str_replace:
@@ -264,7 +279,6 @@ resources:
           params:
             $node_name: { get_param: cmp02_name }
             $config_host: { get_param: config_host }
-            $prev_node: {get_attr: [cmp01_instance, first_address]}
   web01_floating_ip:
     type: OS::Nova::FloatingIP
     properties:
@@ -274,6 +288,15 @@ resources:
     properties:
       floating_ip: { get_resource: web01_floating_ip }
       server_id: { get_resource: web01_instance }
+  web01_port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_param: private_net_id }
+      fixed_ips:
+        - ip_address: 172.10.10.104
+      security_groups:
+        - default
+        - workshop
   web01_instance:
     type: OS::Nova::Server
     properties:
@@ -282,10 +305,7 @@ resources:
       key_name: { get_param: key_name }
       name: { get_param: web01_name }
       networks:
-      - network: { get_param: private_net_id }
-      security_groups:
-      - default
-      - workshop
+      - port: { get_resource: web01_port }
       user_data_format: RAW
       user_data:
         str_replace:
@@ -312,7 +332,15 @@ resources:
           params:
             $node_name: { get_param: web01_name }
             $config_host: { get_param: config_host }
-            $prev_node: {get_attr: [ctl03_instance, first_address]}
+  mon01_port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_param: private_net_id }
+      fixed_ips:
+        - ip_address: 172.10.10.107
+      security_groups:
+        - default
+        - workshop
   mon01_instance:
     type: OS::Nova::Server
     properties:
@@ -321,10 +349,7 @@ resources:
       key_name: { get_param: key_name }
       name: { get_param: mon01_name }
       networks:
-      - network: { get_param: private_net_id }
-      security_groups:
-      - default
-      - workshop
+      - port: { get_resource: mon01_port }
       user_data_format: RAW
       user_data:
         str_replace:
@@ -351,7 +376,15 @@ resources:
           params:
             $node_name: { get_param: mon01_name }
             $config_host: { get_param: config_host }
-            $prev_node: {get_attr: [cmp02_instance, first_address]}
+  mtr01_port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_param: private_net_id }
+      fixed_ips:
+        - ip_address: 172.10.10.108
+      security_groups:
+        - default
+        - workshop
   mtr01_instance:
     type: OS::Nova::Server
     properties:
@@ -360,10 +393,7 @@ resources:
       key_name: { get_param: key_name }
       name: { get_param: mtr01_name }
       networks:
-      - network: { get_param: private_net_id }
-      security_groups:
-      - default
-      - workshop
+      - port: { get_resource: mtr01_port }
       user_data_format: RAW
       user_data:
         str_replace:
@@ -390,4 +420,3 @@ resources:
           params:
             $node_name: { get_param: mtr01_name }
             $config_host: { get_param: config_host }
-            $prev_node: {get_attr: [mon01_instance, first_address]}
