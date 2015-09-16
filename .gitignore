@@ -1,3 +1,5 @@
 *-openrc.sh
 id_rsa*
 *.env
+*venv*
+virtualenv
