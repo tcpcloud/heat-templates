@@ -4,6 +4,24 @@ Heat templates
 
 Repository of various Heat templates.
 
+Installation
+============
+
+To install heat client, it's recommended to setup Python virtualenv and
+install tested versions of openstack clients that are defined in
+`requirements.txt` file.
+
+Create and activate virtualenv named `venv-heat`:
+  .. code-block:: bash
+
+     virtualenv venv-heat
+     source ./venv-heat/bin/activate
+
+Install requirements:
+  .. code-block:: bash
+
+     pip install -r requirements.txt
+
 Usage
 =====
 
