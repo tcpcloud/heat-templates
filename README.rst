@@ -11,6 +11,11 @@ To install heat client, it's recommended to setup Python virtualenv and
 install tested versions of openstack clients that are defined in
 `requirements.txt` file.
 
+Install build tools (eg. on Ubuntu):
+  .. code-block:: bash
+
+     apt-get install python-dev python-pip python-virtualenv build-essential
+
 Create and activate virtualenv named `venv-heat`:
   .. code-block:: bash
 
