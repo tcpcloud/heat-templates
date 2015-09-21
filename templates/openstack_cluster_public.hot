@@ -37,10 +37,24 @@ parameters:
     type: string
   private_net_id:
     type: string
-  instance_flavor:
+  instance_flavor_controller:
     type: string
-    description: Instance type for servers
+    description: Instance type for controllers
     default: m1.large
+    constraints:
+      - allowed_values: [m1.tiny, m1.small, m1.medium, m1.large]
+        description: instance_type must be a valid instance type
+  instance_flavor_compute:
+    type: string
+    description: Instance type for compute nodes
+    default: m1.medium
+    constraints:
+      - allowed_values: [m1.tiny, m1.small, m1.medium, m1.large]
+        description: instance_type must be a valid instance type
+  instance_flavor_support:
+    type: string
+    description: Instance type for support nodes (web, monitoring, etc.)
+    default: m1.small
     constraints:
       - allowed_values: [m1.tiny, m1.small, m1.medium, m1.large]
         description: instance_type must be a valid instance type
@@ -66,7 +80,7 @@ resources:
     type: OS::Nova::Server
     properties:
       image: { get_param: instance_image }
-      flavor: { get_param: instance_flavor }
+      flavor: { get_param: instance_flavor_controller }
       key_name: { get_param: key_name }
       name: { get_param: ctl01_name }
       networks:
@@ -112,7 +126,7 @@ resources:
     type: OS::Nova::Server
     properties:
       image: { get_param: instance_image }
-      flavor: { get_param: instance_flavor }
+      flavor: { get_param: instance_flavor_controller }
       key_name: { get_param: key_name }
       name: { get_param: ctl02_name }
       networks:
@@ -158,7 +172,7 @@ resources:
     type: OS::Nova::Server
     properties:
       image: { get_param: instance_image }
-      flavor: { get_param: instance_flavor }
+      flavor: { get_param: instance_flavor_controller }
       key_name: { get_param: key_name }
       name: { get_param: ctl03_name }
       networks:
@@ -203,7 +217,7 @@ resources:
     type: OS::Nova::Server
     properties:
       image: { get_param: instance_image }
-      flavor: { get_param: instance_flavor }
+      flavor: { get_param: instance_flavor_compute }
       key_name: { get_param: key_name }
       name: { get_param: cmp01_name }
       networks:
@@ -248,7 +262,7 @@ resources:
     type: OS::Nova::Server
     properties:
       image: { get_param: instance_image }
-      flavor: { get_param: instance_flavor }
+      flavor: { get_param: instance_flavor_compute }
       key_name: { get_param: key_name }
       name: { get_param: cmp02_name }
       networks:
@@ -301,7 +315,7 @@ resources:
     type: OS::Nova::Server
     properties:
       image: { get_param: instance_image }
-      flavor: { get_param: instance_flavor }
+      flavor: { get_param: instance_flavor_support }
       key_name: { get_param: key_name }
       name: { get_param: web01_name }
       networks:
@@ -345,7 +359,7 @@ resources:
     type: OS::Nova::Server
     properties:
       image: { get_param: instance_image }
-      flavor: { get_param: instance_flavor }
+      flavor: { get_param: instance_flavor_support }
       key_name: { get_param: key_name }
       name: { get_param: mon01_name }
       networks:
@@ -389,7 +403,7 @@ resources:
     type: OS::Nova::Server
     properties:
       image: { get_param: instance_image }
-      flavor: { get_param: instance_flavor }
+      flavor: { get_param: instance_flavor_support }
       key_name: { get_param: key_name }
       name: { get_param: mtr01_name }
       networks:
