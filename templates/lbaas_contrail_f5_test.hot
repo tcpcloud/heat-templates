@@ -1,0 +1,207 @@
+heat_template_version: 2013-05-23
+description: Contrail F5 LBaaS Heat Template
+parameters:
+  key_name:
+    type: string
+  instance_flavor:
+    type: string
+    description: Instance type for servers
+    default: m1.small
+    constraints:
+      - allowed_values: [m1.tiny, m1.small, m1.medium, m1.large]
+        description: instance_type must be a valid instance type
+  instance_image:
+    type: string
+    description: Image name to use for the servers.
+    default: ubuntu-14-04-x64-1437486976
+  public_net_id:
+    type: string
+    description: ID or name of public network for which floating IP addresses will be allocated
+  router_name:
+    type: string
+    description: Name of router to be created
+    default: test-router
+  lb_name:
+    type: string
+    description: Name of balancer to be created
+    default: test-lb
+  lb_provider:
+    type: string
+    description: Provider of balancer to be created
+    default: f5
+  public_net_name:
+    type: string
+    description: Name of public network to be created
+    default: public-net
+  public_net_cidr:
+    type: string
+    description: Public network address (CIDR notation)
+    default: 172.10.20.0/24
+  public_net_pool_start:
+    type: string
+    description: Start of public network IP address allocation pool
+    default: 172.10.20.100
+  public_net_pool_end:
+    type: string
+    description: End of public network IP address allocation pool
+    default: 172.10.20.200
+  private_net_name:
+    type: string
+    description: Name of private network to be created
+    default: private-net
+  private_net_cidr:
+    type: string
+    description: Private network address (CIDR notation)
+    default: 172.10.10.0/24
+  private_net_pool_start:
+    type: string
+    description: Start of private network IP address allocation pool
+    default: 172.10.10.100
+  private_net_pool_end:
+    type: string
+    description: End of private network IP address allocation pool
+    default: 172.10.10.200
+resources:
+  http_security_group:
+    type: OS::Neutron::SecurityGroup
+    properties:
+      name: http
+      rules:
+      - direction: ingress
+        remote_mode: remote_ip_prefix
+        remote_ip_prefix: 0.0.0.0/0
+        port_range_min: 80
+        port_range_max: 80
+        protocol: tcp
+  public_net:
+    type: OS::Neutron::Net
+    properties:
+      admin_state_up: True
+      name: { get_param: public_net_name }
+      shared: False
+  public_subnet:
+    type: OS::Neutron::Subnet
+    properties:
+      allocation_pools:
+      - start: { get_param: public_net_pool_start }
+        end: { get_param: public_net_pool_end }
+      cidr: { get_param: public_net_cidr }
+      enable_dhcp: True
+      ip_version: 4
+      name: { get_param: public_net_name }
+      network_id: { get_resource: public_net }
+  private_net:
+    type: OS::Neutron::Net
+    properties:
+      admin_state_up: True
+      name: { get_param: private_net_name }
+      shared: False
+  private_subnet:
+    type: OS::Neutron::Subnet
+    properties:
+      allocation_pools:
+      - start: { get_param: private_net_pool_start }
+        end: { get_param: private_net_pool_end }
+      cidr: { get_param: private_net_cidr }
+      enable_dhcp: True
+      ip_version: 4
+      name: { get_param: private_net_name }
+      network_id: { get_resource: private_net }
+  router:
+    type: OS::Neutron::Router
+    properties:
+      name: { get_param: router_name }
+      external_gateway_info:
+        network: { get_param: public_net_id }
+  router_interface:
+    type: OS::Neutron::RouterInterface
+    properties:
+      router_id: { get_resource: router }
+      subnet_id: { get_resource: private_subnet }
+  lb_ping_healt_monitor:
+    type: OS::Neutron::HealthMonitor
+    properties:
+      admin_state_up: True
+      delay: 5
+      max_retries: 1
+      timeout: 5
+      type: PING
+  lb_pool:
+    type: OS::Neutron::Pool
+    properties:
+      admin_state_up: True
+      lb_method: ROUND_ROBIN
+      name: { get_param: lb_name }
+      protocol: HTTP
+      provider: { get_param: lb_provider }
+      monitors:
+      - { get_resource: lb_ping_healt_monitor }
+      subnet_id: { get_resource: private_subnet }
+      vip:
+        protocol_port: 80
+#        address: { get_param: public_net_ip }
+        admin_state_up: True
+        subnet: { get_resource: public_subnet } 
+  instance_01:
+    type: OS::Nova::Server
+    properties:
+      image: { get_param: instance_image }
+      flavor: { get_param: instance_flavor }
+      key_name: { get_param: key_name }
+      name: test-web01
+      networks:
+      - network: { get_resource: private_net }
+      security_groups:
+      - default
+      - { get_resource: http_security_group }
+      user_data_format: RAW
+      user_data: |
+        #!/bin/bash -v
+        apt-get install apache2 -yy
+        echo "Instance 01" > /var/www/html/index.html
+  lb_pool_member_instance_01:
+    type: OS::Neutron::PoolMember
+    properties:
+      address: { get_attr: [ instance_01 , first_address ] }
+      admin_state_up: True
+      pool_id: { get_resource: lb_pool }
+      protocol_port: 80
+      weight: 1
+  instance_02:
+    type: OS::Nova::Server
+    properties:
+      image: { get_param: instance_image }
+      flavor: { get_param: instance_flavor }
+      key_name: { get_param: key_name }
+      name: test-web02
+      networks:
+      - network: { get_resource: private_net }
+      security_groups:
+      - default
+      - { get_resource: http_security_group }
+      user_data_format: RAW
+      user_data: |
+        #!/bin/bash -v
+        apt-get install apache2 -yy
+        echo "Instance 02" > /var/www/html/index.html
+  lb_pool_member_instance_02:
+    type: OS::Neutron::PoolMember
+    properties:
+      address: { get_attr: [ instance_02 , first_address ] }
+      admin_state_up: True
+      pool_id: { get_resource: lb_pool }
+      protocol_port: 80
+      weight: 1
+  lb:
+    type: OS::Neutron::LoadBalancer
+    properties:
+      members:
+      - { get_resource: instance_01 }
+      - { get_resource: instance_02 }
+      pool_id: { get_resource: lb_pool }
+      protocol_port: 80
+  lb_floating:
+    type: OS::Neutron::FloatingIP
+    properties:
+      floating_network_id: {get_param: public_net_id}
+      port_id: {get_attr: [lb_pool, vip, port_id]}
