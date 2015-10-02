@@ -59,3 +59,5 @@ Stacks
    *  - openvstorage_cluster_private
       - Deploy Open vStorage infrastructure on top of
         ``openstack_cluster_public``
+   *  - lbaas_contrail_f5_test
+      - Test stack to prove functionality of Contrail F5 integration
