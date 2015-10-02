@@ -14,13 +14,9 @@ parameters:
     type: string
     description: Image name to use for the servers.
     default: ubuntu-14-04-x64-1437486976
-  public_net_id:
+  route_targets:
     type: string
-    description: ID or name of public network for which floating IP addresses will be allocated
-  router_name:
-    type: string
-    description: Name of router to be created
-    default: test-router
+    description: route targets associated with the private virtual network
   lb_name:
     type: string
     description: Name of balancer to be created
@@ -36,15 +32,19 @@ parameters:
   public_net_cidr:
     type: string
     description: Public network address (CIDR notation)
-    default: 172.10.20.0/24
+    default: 185.22.120.0/24
   public_net_pool_start:
     type: string
     description: Start of public network IP address allocation pool
-    default: 172.10.20.100
+    default: 185.22.120.100
   public_net_pool_end:
     type: string
     description: End of public network IP address allocation pool
-    default: 172.10.20.200
+    default: 185.22.120.200
+  private_ipam_name:
+    type: string
+    description: IPAM of private network to be created
+    default: private-net
   private_net_name:
     type: string
     description: Name of private network to be created
@@ -53,6 +53,10 @@ parameters:
     type: string
     description: Private network address (CIDR notation)
     default: 172.10.10.0/24
+  private_net_gw:
+    type: string
+    description: Private network gateway
+    default: 172.10.10.1
   private_net_pool_start:
     type: string
     description: Start of private network IP address allocation pool
@@ -107,17 +111,30 @@ resources:
       ip_version: 4
       name: { get_param: private_net_name }
       network_id: { get_resource: private_net }
-  router:
-    type: OS::Neutron::Router
+  private_net_ipam:
+    type: OS::Contrail::NetworkIpam
     properties:
-      name: { get_param: router_name }
-      external_gateway_info:
-        network: { get_param: public_net_id }
-  router_interface:
-    type: OS::Neutron::RouterInterface
+      name: { get_param: private_ipam_name }
+  private_net:
+    type: OS::Contrail::VirtualNetwork
     properties:
-      router_id: { get_resource: router }
-      subnet_id: { get_resource: private_subnet }
+      name: { get_param: private_net_name }
+      shared: False
+      external: False
+      route_targets: { "Fn::Split" : [ ",", Ref: route_targets ] }
+      forwarding_mode: l2_l3
+  private_subnet:
+    type: OS::Contrail::VnSubnet
+    properties:
+      name: { get_param: private_net_name }
+      network: { get_resource: private_net }
+      ip_prefix: { get_param: private_net_cidr }
+      default_gateway: { get_param: private_net_gw }
+      ipam: { get_resource: private_net_ipam }
+      enable_dhcp: True
+      allocation_pools:
+      - start: { get_param: private_net_pool_start }
+        end: { get_param: private_net_pool_end }
   lb_ping_healt_monitor:
     type: OS::Neutron::HealthMonitor
     properties:
@@ -200,8 +217,3 @@ resources:
       - { get_resource: instance_02 }
       pool_id: { get_resource: lb_pool }
       protocol_port: 80
-  lb_floating:
-    type: OS::Neutron::FloatingIP
-    properties:
-      floating_network_id: {get_param: public_net_id}
-      port_id: {get_attr: [lb_pool, vip, port_id]}
