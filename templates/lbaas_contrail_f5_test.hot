@@ -44,7 +44,7 @@ parameters:
   private_ipam_name:
     type: string
     description: IPAM of private network to be created
-    default: private-net
+    default: private-ipam
   private_net_name:
     type: string
     description: Name of private network to be created
@@ -94,23 +94,6 @@ resources:
       ip_version: 4
       name: { get_param: public_net_name }
       network_id: { get_resource: public_net }
-  private_net:
-    type: OS::Neutron::Net
-    properties:
-      admin_state_up: True
-      name: { get_param: private_net_name }
-      shared: False
-  private_subnet:
-    type: OS::Neutron::Subnet
-    properties:
-      allocation_pools:
-      - start: { get_param: private_net_pool_start }
-        end: { get_param: private_net_pool_end }
-      cidr: { get_param: private_net_cidr }
-      enable_dhcp: True
-      ip_version: 4
-      name: { get_param: private_net_name }
-      network_id: { get_resource: private_net }
   private_net_ipam:
     type: OS::Contrail::NetworkIpam
     properties:
