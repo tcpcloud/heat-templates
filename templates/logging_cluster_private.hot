@@ -1,0 +1,192 @@
+heat_template_version: 2013-05-23
+description: Logging cluster for workshop
+parameters:
+  config_host:
+    type: string
+    default: 172.10.10.100
+  key_name:
+    type: string
+  kibana_name:
+    type: string
+    default: kibana1.workshop.cloudlab.cz
+  es_name:
+    type: string
+    default: es1.workshop.cloudlab.cz
+  heka_name:
+    type: string
+    default: heka-router1.workshop.cloudlab.cz
+ cluster_vip_address:
+    type: string
+    default: 172.10.10.254
+  public_net_id:
+    type: string
+  private_net_id:
+    type: string
+  instance_flavor_kibana:
+    type: string
+    description: Instance type for kibana web
+    default: m1.tiny
+    constraints:
+      - allowed_values: [m1.tiny, m1.small, m1.medium]
+        description: instance_type must be a valid instance type
+  instance_flavor_elasticsearch:
+    type: string
+    description: Instance type for elasticsearch nodes
+    default: m1.medium
+    constraints:
+      - allowed_values: [m1.tiny, m1.small, m1.medium, m1.large]
+        description: instance_type must be a valid instance type
+  instance_flavor_heka:
+    type: string
+    description: Instance type for heka router nodes
+    default: m1.small
+    constraints:
+      - allowed_values: [m1.tiny, m1.small, m1.medium, m1.large]
+        description: instance_type must be a valid instance type
+  instance_image:
+    type: string
+    description: Image name to use for the servers.
+    default: ubuntu-14-04-x64-1437486976
+  private_net_id:
+    type: string
+resources:
+  kibana_port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_param: private_net_id }
+      fixed_ips:
+        - ip_address: 172.10.10.115
+      allowed_address_pairs:
+        - ip_address: { get_param: cluster_vip_address }
+      security_groups:
+        - default
+        - workshop
+  kibana_instance:
+    type: OS::Nova::Server
+    properties:
+      image: { get_param: instance_image }
+      flavor: { get_param: instance_flavor_kibana }
+      key_name: { get_param: key_name }
+      name: { get_param: kibana_name }
+      networks:
+      - port: { get_resource: kibana_port }
+      user_data_format: RAW
+      user_data:
+        str_replace:
+          template: |
+            #!/bin/bash
+            echo "Preparing base OS"
+            which wget >/dev/null || (apt-get update; apt-get install -y wget)
+
+            echo "deb [arch=amd64] http://apt.tcpcloud.eu/nightly/ trusty main security extra tcp tcp-salt" > /etc/apt/sources.list
+            wget -O - http://apt.tcpcloud.eu/public.gpg | apt-key add -
+
+            apt-get clean
+            apt-get update
+            apt-get install -y salt-minion
+
+            echo "id: $node_name" >> /etc/salt/minion
+            echo "master: $config_host" >> /etc/salt/minion
+            rm -f /etc/salt/pki/minion/minion_master.pub
+            service salt-minion restart
+            echo "Showing node metadata..."
+            salt-call --no-color pillar.data
+            echo "Running complete state ..."
+            salt-call --no-color state.sls linux,openssh,salt
+          params:
+            $node_name: { get_param: kibana_name }
+            $config_host: { get_param: config_host }
+  es_port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_param: private_net_id }
+      fixed_ips:
+        - ip_address: 172.10.10.116
+      allowed_address_pairs:
+        - ip_address: { get_param: cluster_vip_address }
+      security_groups:
+        - default
+        - workshop
+  es_instance:
+    type: OS::Nova::Server
+    properties:
+      image: { get_param: instance_image }
+      flavor: { get_param: instance_flavor_elasticsearch }
+      key_name: { get_param: key_name }
+      name: { get_param: es_name }
+      networks:
+      - port: { get_resource: es_port }
+      user_data_format: RAW
+      user_data:
+        str_replace:
+          template: |
+            #!/bin/bash
+            echo "Preparing base OS"
+            which wget >/dev/null || (apt-get update; apt-get install -y wget)
+
+            echo "deb [arch=amd64] http://apt.tcpcloud.eu/nightly/ trusty main security extra tcp tcp-salt" > /etc/apt/sources.list
+            wget -O - http://apt.tcpcloud.eu/public.gpg | apt-key add -
+
+            apt-get clean
+            apt-get update
+            apt-get install -y salt-minion
+
+            echo "id: $node_name" >> /etc/salt/minion
+            echo "master: $config_host" >> /etc/salt/minion
+            rm -f /etc/salt/pki/minion/minion_master.pub
+            service salt-minion restart
+            echo "Showing node metadata..."
+            salt-call --no-color pillar.data
+            echo "Running complete state ..."
+            salt-call --no-color state.sls linux,openssh,salt
+          params:
+            $node_name: { get_param: es_name }
+            $config_host: { get_param: config_host }
+  heka_port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_param: private_net_id }
+      fixed_ips:
+        - ip_address: 172.10.10.117
+      allowed_address_pairs:
+        - ip_address: { get_param: cluster_vip_address }
+      security_groups:
+        - default
+        - workshop
+  heka_instance:
+    type: OS::Nova::Server
+    properties:
+      image: { get_param: instance_image }
+      flavor: { get_param: instance_flavor_heka }
+      key_name: { get_param: key_name }
+      name: { get_param: heka_name }
+      networks:
+      - port: { get_resource: heka_port }
+      user_data_format: RAW
+      user_data:
+        str_replace:
+          template: |
+            #!/bin/bash
+            echo "Preparing base OS"
+            which wget >/dev/null || (apt-get update; apt-get install -y wget)
+
+            echo "deb [arch=amd64] http://apt.tcpcloud.eu/nightly/ trusty main security extra tcp tcp-salt" > /etc/apt/sources.list
+            wget -O - http://apt.tcpcloud.eu/public.gpg | apt-key add -
+
+            apt-get clean
+            apt-get update
+            apt-get install -y salt-minion
+
+            echo "id: $node_name" >> /etc/salt/minion
+            echo "master: $config_host" >> /etc/salt/minion
+            rm -f /etc/salt/pki/minion/minion_master.pub
+            service salt-minion restart
+            echo "Showing node metadata..."
+            salt-call --no-color pillar.data
+            echo "Running complete state ..."
+            salt-call --no-color state.sls linux,openssh,salt
+#            salt-call --no-color state.highstate
+          params:
+            $node_name: { get_param: heka_name }
+            $config_host: { get_param: config_host }
+
