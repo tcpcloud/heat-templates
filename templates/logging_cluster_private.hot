@@ -15,11 +15,6 @@ parameters:
   heka_name:
     type: string
     default: heka-router1.workshop.cloudlab.cz
- cluster_vip_address:
-    type: string
-    default: 172.10.10.254
-  public_net_id:
-    type: string
   private_net_id:
     type: string
   instance_flavor_kibana:
@@ -39,14 +34,14 @@ parameters:
   instance_flavor_heka:
     type: string
     description: Instance type for heka router nodes
-    default: m1.small
+    default: m1.medium
     constraints:
       - allowed_values: [m1.tiny, m1.small, m1.medium, m1.large]
         description: instance_type must be a valid instance type
   instance_image:
     type: string
     description: Image name to use for the servers.
-    default: ubuntu-14-04-x64-1437486976
+    default: ubuntu-14-04-x64-1441380609
   private_net_id:
     type: string
 resources:
@@ -57,7 +52,6 @@ resources:
       fixed_ips:
         - ip_address: 172.10.10.115
       allowed_address_pairs:
-        - ip_address: { get_param: cluster_vip_address }
       security_groups:
         - default
         - workshop
@@ -103,7 +97,6 @@ resources:
       fixed_ips:
         - ip_address: 172.10.10.116
       allowed_address_pairs:
-        - ip_address: { get_param: cluster_vip_address }
       security_groups:
         - default
         - workshop
@@ -149,7 +142,6 @@ resources:
       fixed_ips:
         - ip_address: 172.10.10.117
       allowed_address_pairs:
-        - ip_address: { get_param: cluster_vip_address }
       security_groups:
         - default
         - workshop
