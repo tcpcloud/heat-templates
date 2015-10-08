@@ -20,7 +20,7 @@ parameters:
   instance_flavor_kibana:
     type: string
     description: Instance type for kibana web
-    default: m1.tiny
+    default: m1.small
     constraints:
       - allowed_values: [m1.tiny, m1.small, m1.medium]
         description: instance_type must be a valid instance type
