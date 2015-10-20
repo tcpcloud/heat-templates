@@ -182,7 +182,8 @@ resources:
             echo "Running complete state ..."
             salt-call --no-color state.sls linux openssh salt.minion
             salt-call --no-color state.sls salt.master
-            salt-call --no-color state.highstate
+            service salt-minion restart
+            #salt-call --no-color state.highstate
           params:
             $node_name: { get_param: cfg01_name }
             $reclass_address: { get_param: reclass_address }

@@ -14,7 +14,7 @@ install tested versions of openstack clients that are defined in
 Install build tools (eg. on Ubuntu):
   .. code-block:: bash
 
-     apt-get install python-dev python-pip python-virtualenv build-essential
+     apt-get install python-dev python-pip python-virtualenv build-essential libffi-dev libssl-dev
 
 Create and activate virtualenv named `venv-heat`:
   .. code-block:: bash
