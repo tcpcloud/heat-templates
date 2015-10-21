@@ -37,6 +37,8 @@ parameters:
     type: string
   private_net_id:
     type: string
+  availability_zone:
+    type: string
   instance_flavor_controller:
     type: string
     description: Instance type for controllers
@@ -83,6 +85,7 @@ resources:
       flavor: { get_param: instance_flavor_controller }
       key_name: { get_param: key_name }
       name: { get_param: ctl01_name }
+      availability_zone: { get_param: availability_zone }
       networks:
       - port: { get_resource: ctl01_port }
       user_data_format: RAW
@@ -129,6 +132,7 @@ resources:
       flavor: { get_param: instance_flavor_controller }
       key_name: { get_param: key_name }
       name: { get_param: ctl02_name }
+      availability_zone: { get_param: availability_zone }
       networks:
       - port: { get_resource: ctl02_port }
       user_data_format: RAW
@@ -175,6 +179,7 @@ resources:
       flavor: { get_param: instance_flavor_controller }
       key_name: { get_param: key_name }
       name: { get_param: ctl03_name }
+      availability_zone: { get_param: availability_zone }
       networks:
       - port: { get_resource: ctl03_port }
       user_data_format: RAW
@@ -220,6 +225,7 @@ resources:
       flavor: { get_param: instance_flavor_compute }
       key_name: { get_param: key_name }
       name: { get_param: cmp01_name }
+      availability_zone: { get_param: availability_zone }
       networks:
       - port: { get_resource: cmp01_port }
       user_data_format: RAW
@@ -265,6 +271,7 @@ resources:
       flavor: { get_param: instance_flavor_compute }
       key_name: { get_param: key_name }
       name: { get_param: cmp02_name }
+      availability_zone: { get_param: availability_zone }
       networks:
       - port: { get_resource: cmp02_port }
       user_data_format: RAW
@@ -318,6 +325,7 @@ resources:
       flavor: { get_param: instance_flavor_support }
       key_name: { get_param: key_name }
       name: { get_param: web01_name }
+      availability_zone: { get_param: availability_zone }
       networks:
       - port: { get_resource: web01_port }
       user_data_format: RAW
@@ -362,6 +370,7 @@ resources:
       flavor: { get_param: instance_flavor_support }
       key_name: { get_param: key_name }
       name: { get_param: mon01_name }
+      availability_zone: { get_param: availability_zone }
       networks:
       - port: { get_resource: mon01_port }
       user_data_format: RAW
@@ -406,6 +415,7 @@ resources:
       flavor: { get_param: instance_flavor_support }
       key_name: { get_param: key_name }
       name: { get_param: mtr01_name }
+      availability_zone: { get_param: availability_zone }
       networks:
       - port: { get_resource: mtr01_port }
       user_data_format: RAW
