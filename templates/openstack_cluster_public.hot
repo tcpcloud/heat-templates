@@ -54,7 +54,7 @@ parameters:
   instance_flavor_support:
     type: string
     description: Instance type for support nodes (web, monitoring, etc.)
-    default: m1.small
+    default: m1.medium
     constraints:
       - allowed_values: [m1.tiny, m1.small, m1.medium, m1.large]
         description: instance_type must be a valid instance type
