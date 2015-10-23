@@ -44,21 +44,21 @@ parameters:
     description: Instance type for controllers
     default: m1.large
     constraints:
-      - allowed_values: [m1.tiny, m1.small, m1.medium, m1.large]
+      - allowed_values: [m1.tiny, m1.small, m1.medium, m1.large, m1.xlarge]
         description: instance_type must be a valid instance type
   instance_flavor_compute:
     type: string
     description: Instance type for compute nodes
     default: m1.medium
     constraints:
-      - allowed_values: [m1.tiny, m1.small, m1.medium, m1.large]
+      - allowed_values: [m1.tiny, m1.small, m1.medium, m1.large, m1.xlarge]
         description: instance_type must be a valid instance type
   instance_flavor_support:
     type: string
     description: Instance type for support nodes (web, monitoring, etc.)
     default: m1.medium
     constraints:
-      - allowed_values: [m1.tiny, m1.small, m1.medium, m1.large]
+      - allowed_values: [m1.tiny, m1.small, m1.medium, m1.large, m1.xlarge]
         description: instance_type must be a valid instance type
   instance_image:
     type: string
