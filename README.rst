@@ -61,3 +61,7 @@ Stacks
         ``openstack_cluster_public``
    *  - lbaas_contrail_f5_test
       - Test stack to prove functionality of Contrail F5 integration
+   *  - k8s_single_opencontrail_
+      - Kubernetes with OpenContrail
+
+.. _k8s_single_opencontrail: https://github.com/tcpcloud/heat-templates/tree/master/doc/k8s_single_opencontrail.rst

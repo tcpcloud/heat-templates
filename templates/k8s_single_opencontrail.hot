@@ -1,0 +1,419 @@
+heat_template_version: 2013-05-23
+description: Kubernetes on OpenStack with OpenContrail
+parameters:
+  key_name:
+    type: string
+  key_value:
+    type: string
+  availability_zone:
+    type: string
+    default: dev01
+  k8s-deploy_name:
+    type: string
+    default: k8s-deploy.workshop.cloudlab.cz
+  k8s-master_name:
+    type: string
+    default: k8s-master.workshop.cloudlab.cz
+  k8s-gateway_name:
+    type: string
+    default: k8s-master.workshop.cloudlab.cz
+  k8s-node-01_name:
+    type: string
+    default: k8s-node-01.workshop.cloudlab.cz
+  k8s-node-02_name:
+    type: string
+    default: k8s-node-02.workshop.cloudlab.cz
+  public_net_id:
+    type: string
+  instance_flavor:
+    type: string
+    description: Instance type for servers
+    default: m1.large
+    constraints:
+      - allowed_values: [m1.tiny, m1.small, m1.medium, m1.large]
+        description: instance_type must be a valid instance type
+  instance_flavor_controller:
+    type: string
+    description: Instance type for controllers
+    default: m1.large
+    constraints:
+      - allowed_values: [m1.tiny, m1.small, m1.medium, m1.large]
+        description: instance_type must be a valid instance type
+  instance_image:
+    type: string
+    description: Image name to use for the servers.
+    default: ubuntu-14-04-x64-1441380609
+  router_name:
+    type: string
+    description: Name of router to be created
+    default: k8s-router
+  external_net_name:
+    type: string
+    description: Name of external network to be created
+    default: external-network
+  external_net_cidr:
+    type: string
+    description: External network address (CIDR notation)
+    default: 10.0.2.0/24
+  external_net_pool_start:
+    type: string
+    description: Start of external network IP address allocation pool
+    default: 10.0.2.10
+  external_net_pool_end:
+    type: string
+    description: End of external network IP address allocation pool
+    default: 10.0.2.200
+  private_net_name:
+    type: string
+    description: Name of private network to be created
+    default: underlay-network
+  private_net_cidr:
+    type: string
+    description: Private network address (CIDR notation)
+    default: 192.168.1.0/24
+  private_net_pool_start:
+    type: string
+    description: Start of private network IP address allocation pool
+    default: 192.168.1.10
+  private_net_pool_end:
+    type: string
+    description: End of private network IP address allocation pool
+    default: 192.168.1.254
+resources:
+  keypair:
+    type: OS::Nova::KeyPair
+    properties:
+      name: { get_param: key_name }
+      public_key: { get_param: key_value }
+      save_private_key: false
+  private_net:
+    type: OS::Neutron::Net
+    properties:
+      name: { get_param: private_net_name }
+  private_subnet:
+    type: OS::Neutron::Subnet
+    properties:
+      name: { get_param: private_net_name }
+      network_id: { get_resource: private_net }
+      cidr: { get_param: private_net_cidr }
+      allocation_pools:
+        - start: { get_param: private_net_pool_start }
+          end: { get_param: private_net_pool_end }
+  external_net:
+    type: OS::Neutron::Net
+    properties:
+      name: { get_param: external_net_name }
+  external_subnet:
+    type: OS::Neutron::Subnet
+    properties:
+      name: { get_param: external_net_name }
+      network_id: { get_resource: external_net }
+      cidr: { get_param: external_net_cidr }
+      allocation_pools:
+        - start: { get_param: external_net_pool_start }
+          end: { get_param: external_net_pool_end }
+  router:
+    type: OS::Neutron::Router
+    properties:
+      name: { get_param: router_name }
+      external_gateway_info:
+        network: { get_param: public_net_id }
+  router_interface:
+    type: OS::Neutron::RouterInterface
+    properties:
+      router_id: { get_resource: router }
+      subnet_id: { get_resource: external_subnet }
+  wait_condition:
+    type: OS::Heat::WaitCondition
+    properties:
+      handle: { get_resource: wait_handle }
+      count: 1
+      timeout: 3600
+  wait_handle:
+    type: OS::Heat::WaitConditionHandle
+  k8s-deploy_instance:
+    type: OS::Nova::Server
+    properties:
+      image: { get_param: instance_image }
+      flavor: m1.small
+      key_name: { get_resource: keypair }
+      name: { get_param: k8s-deploy_name }
+      availability_zone: { get_param: availability_zone }
+      networks:
+      - network: { get_resource: external_net }
+      - network: { get_resource: private_net }
+      user_data_format: RAW
+      user_data:
+        str_replace:
+          template: |
+            #!/bin/bash
+            echo "Preparing base OS"
+            
+            apt-get clean
+            apt-get update
+            
+            # Install required packages
+            apt-get install git wget python-dev python-pip python-netaddr -y
+
+            # Install required version of Ansible
+            pip install ansible
+            
+            # Load private ssh key for deployment
+            [ ! -d /root/.ssh ] && mkdir -p /root/.ssh
+            
+            cat << 'EOF' > /root/.ssh/id_rsa
+            -----BEGIN RSA PRIVATE KEY-----
+            MIIEpAIBAAKCAQEAzYZIPXrsAlAGtz8igML1dPc1n3f91pmOXRMpuSpsf1GSgEEU
+            jvtPiwlDbjw6K/fAIjqMuLsSbj44hLng7CI1o9PIzO7H0KSuvfdBLf0bIfmgjAAw
+            1Kw6qzR8zHdI7PgRNsBDnXJ3HX5aOquQJksfmxS2cyUZoCP5rS83PVpYmvqadtkS
+            DlnVqnOUN5J+GDnGuUx4uDHgAZyL61ZEt8dIvHCDBkMJaZ4aFcZCUk66sRM+uHXf
+            m9inq1fGY7veI2gPyB96Wy/KCqHoqQocbVWaUJquayxoM+Lv0EJwt3vbLX7Ixs3T
+            c3Ihdwjfur0NHb/jMG125xyuNopBcLWhpL6DjwIDAQABAoIBAQCwnRprKryxaA+9
+            XRXLTL4d22pLNZP+3EpIlXUfV+OQrYqViFegXzoFoto9WqgqrGaBg4r2HFxEPFfZ
+            RtqQUP2DYTWHVhKDq2E2gcmTOZQdaCSc6nUL7U0lXp94HXGfobU5NZNlM75ErBXh
+            oRjor1njrLL01AbnZMLkHlT79i16TyInN89Liooykl15KXdvGVGiKBY5m5S7RWCf
+            JnyEK5HkYt/8Mq8fcEwopnwfJ1dZE59OL2XDfvbYUOf1HbGlqBnHNFTtHxyQVOfH
+            86sZbf7ba/yIYyJOxS2W3BIkZkH0ek+RhRBQ6YGTvE9OGUB3uYSHEoG/gBxeI8wL
+            lrnZMDdhAoGBAOpqri2vhcPwwtWJI1UxLkGNxib13joQyeaA61QqHOwCWQLvg073
+            0mj4xqwYrvBplSkGmSz0dGC7gc6UatGIYnL8Og2dEu1bo8IO3wYO7IlueOJRrnh9
+            rSg67KQlIn47zbk5gKlsJoWlyS8mBTUimYffvEmi3YGOLKHhcHquKwa5AoGBAOBy
+            mT+KTay8IiYPV6yma81WrpnToNTLBWAu/g40vBJXuJ9gQfHyKEwGB/AqklCOC4+N
+            9SdMphiX0M2Nvj2VPbU8otS2YpDiJswTsXzEdq7tjk0jig1Ejcf3CkhkYcn9dq04
+            0qRzfav+fxGxDY/0tEddybEwff7WM/UTFuhcgbiHAoGARgCzoRsAdEIKvN/mOEOm
+            j5b57JqR0X8/++DV5d1po6UT1ceWy9c/828PTUdVvp+ZFpZM2drqghScsAcsWwRC
+            ehoOcBBPHai3H3V3boS4aFYgLV29H2hQdGocTuxz/4R2a/DbFj0gx9p5WOYeuf5q
+            IORUgxzqzwyZEYKUJ16ppKkCgYEAgLA0PcJGluuniLrzQgKJfMpegcRdSqS9CFDp
+            SaviyYGSUY8XQGnfwPcURheinJ1U85IpJcdE1IT3K2RB131iTC/gDKYmDXwdUpVY
+            Bnl+sv1xwbjGxqSvxh9WvfsQNoglK1yRKckuHRdmM/aYGBnt451ar0VmeF7Im5O+
+            ZqvjlLECgYANF+J7WRoyHfXo6YH+1QEshSu+UA5oAB0MP+Sek9+Bk4gtJBQczNK+
+            nyNcv/WWltKxJ7Q6BxyzRwkq5RxnwXbR69ndzNLDmRUojX0sE9VCnNkWIajtc0Is
+            XvAj0NWlphdD4a5p5Oqz/JXbjcgZUTBrRjgb4JAnX2KHDmtBEfnHOQ==
+            -----END RSA PRIVATE KEY-----
+            EOF
+            chmod 400 /root/.ssh/id_rsa
+
+            #Disable ssh host key checking 
+            echo "    StrictHostKeyChecking no" >> /etc/ssh/ssh_config
+            echo "    HashKnownHosts no" >> /etc/ssh/ssh_config
+            
+            # Clone ansible playbooks
+            cd /root/;git clone -b opencontrail https://github.com/pedro-r-marques/contrib.git
+            
+            # Download Kubernetes binaries
+            cd /root;wget https://github.com/kubernetes/kubernetes/releases/download/v1.1.1/kubernetes.tar.gz;tar xvf kubernetes.tar.gz
+
+            tar zxvf kubernetes/server/kubernetes-server-linux-amd64.tar.gz
+
+            # Copy binaries to appropriate directory
+            mkdir -p /root/contrib/ansible/roles/_output/local/go/bin/
+            cp /root/kubernetes/server/bin/* /root/contrib/ansible/roles/_output/local/go/bin/
+
+            # Ansible configuration
+            cat <<EOF > /root/.ansible.cfg
+            [default]
+            pipelining=True
+ 
+            [ssh_connection]
+            ssh_args = -o ControlMaster=no -o ControlPersist=60s
+            EOF
+
+            #Switch flannel to opencontrail in global variables
+            echo "opencontrail_master_host_address: 192.168.1.10" >> /root/contrib/ansible/group_vars/all.yml
+            sed -i 's/networking: flannel/networking: opencontrail/g' /root/contrib/ansible/group_vars/all.yml
+
+            #Load Ansible inventory file
+            cd /root/contrib/ansible;wget https://raw.githubusercontent.com/pupapaik/scripts/master/kubernetes/ansible/inventory
+
+            #Setup local dns resolving
+            echo "$k8s_master k8s-master" >> /etc/hosts
+            echo "$k8s_gateway k8s-gateway" >> /etc/hosts
+            echo "$k8s_node01 k8s-node-01" >> /etc/hosts
+            echo "$k8s_node02 k8s-node-02" >> /etc/hosts
+
+            echo "auto eth1" >> /etc/network/interfaces.d/eth1.cfg
+            echo "iface eth1 inet dhcp" >> /etc/network/interfaces.d/eth1.cfg
+            ifup eth1
+            
+            echo "Deploying Kubernetes by Ansible"
+            # Run k8s Ansible provisioning
+            cd /root/contrib/ansible;sh setup.sh
+            wc_notify --data-binary '{"status": "SUCCESS"}'
+            echo "Finished"
+
+          params:
+            $node_name: { get_param: k8s-deploy_name }
+            $k8s_master: { get_attr: [k8s-master_instance, first_address] }
+            $k8s_gateway: { get_attr: [k8s-gateway_instance, first_address] }
+            $k8s_node01: { get_attr: [k8s-node-01_instance, first_address] }
+            $k8s_node02: { get_attr: [k8s-node-02_instance, first_address] }
+            wc_notify: { get_attr: ['wait_handle', 'curl_cli'] }
+  k8s-master_port:
+    type: OS::Neutron::Port
+    properties:
+      network: { get_resource: private_net }
+      fixed_ips:
+        - ip_address: 192.168.1.10
+      security_groups:
+        - default
+  k8s-master_instance:
+    type: OS::Nova::Server
+    properties:
+      image: { get_param: instance_image }
+      flavor: { get_param: instance_flavor_controller }
+      key_name: { get_resource: keypair }
+      name: { get_param: k8s-master_name }
+      availability_zone: { get_param: availability_zone }
+      networks:
+      - network: { get_resource: external_net }
+      - port: { get_resource: k8s-master_port }
+      user_data_format: RAW
+      user_data:
+        str_replace:
+          template: |
+            #!/bin/bash
+            echo "Preparing base OS"
+
+            apt-get clean
+            apt-get update
+
+            apt-get install git  -y
+
+            echo "192.168.1.10 k8s-master" >> /etc/hosts
+            echo "192.168.1.13 k8s-node-02" >> /etc/hosts
+            echo "192.168.1.12 k8s-node-01" >> /etc/hosts
+            echo "192.168.1.254 k8s-gateway" >> /etc/hosts
+
+            echo "auto eth1" >> /etc/network/interfaces.d/eth1.cfg
+            echo "iface eth1 inet dhcp" >> /etc/network/interfaces.d/eth1.cfg
+            ifup eth1
+
+          params:
+            $node_name: { get_param: k8s-master_name }
+  k8s-gateway_port:
+    type: OS::Neutron::Port
+    properties:
+      network: { get_resource: private_net }
+      fixed_ips:
+        - ip_address: 192.168.1.254
+      security_groups:
+        - default
+  k8s-gateway_instance:
+    type: OS::Nova::Server
+    properties:
+      image: { get_param: instance_image }
+      flavor: { get_param: instance_flavor_controller }
+      key_name: { get_resource: keypair }
+      name: { get_param: k8s-gateway_name }
+      availability_zone: { get_param: availability_zone }
+      networks:
+      - network: { get_resource: external_net }
+      - port: { get_resource: k8s-gateway_port }
+      user_data_format: RAW
+      user_data:
+        str_replace:
+          template: |
+            #!/bin/bash
+            echo "Preparing base OS"
+
+            apt-get clean
+            apt-get update
+
+            apt-get install git  -y
+
+            echo "192.168.1.10 k8s-master" >> /etc/hosts
+            echo "192.168.1.13 k8s-node-02" >> /etc/hosts
+            echo "192.168.1.12 k8s-node-01" >> /etc/hosts
+            echo "192.168.1.254 k8s-gateway" >> /etc/hosts
+
+            echo "auto eth1" >> /etc/network/interfaces.d/eth1.cfg
+            echo "iface eth1 inet dhcp" >> /etc/network/interfaces.d/eth1.cfg
+            ifup eth1
+          params:
+            $node_name: { get_param: k8s-gateway_name }
+  k8s-node-01_port:
+    type: OS::Neutron::Port
+    properties:
+      network: { get_resource: private_net }
+      fixed_ips:
+        - ip_address: 192.168.1.12
+      security_groups:
+        - default
+  k8s-node-01_instance:
+    type: OS::Nova::Server
+    properties:
+      image: { get_param: instance_image }
+      flavor: { get_param: instance_flavor_controller }
+      key_name: { get_resource: keypair }
+      name: { get_param: k8s-node-01_name }
+      availability_zone: { get_param: availability_zone }
+      networks:
+      - network: { get_resource: external_net }
+      - port: { get_resource: k8s-node-01_port }
+      user_data_format: RAW
+      user_data:
+        str_replace:
+          template: |
+            #!/bin/bash
+            echo "Preparing base OS"
+
+            apt-get clean
+            apt-get update
+
+            echo "192.168.1.10 k8s-master" >> /etc/hosts
+            echo "192.168.1.13 k8s-node-02" >> /etc/hosts
+            echo "192.168.1.12 k8s-node-01" >> /etc/hosts
+            echo "192.168.1.254 k8s-gateway" >> /etc/hosts
+
+            echo "auto eth1" >> /etc/network/interfaces.d/eth1.cfg
+            echo "iface eth1 inet dhcp" >> /etc/network/interfaces.d/eth1.cfg
+            ifup eth1
+          params:
+            $node_name: { get_param: k8s-node-01_name }
+  k8s-node-02_port:
+    type: OS::Neutron::Port
+    properties:
+      network: { get_resource: private_net }
+      fixed_ips:
+        - ip_address: 192.168.1.13
+      security_groups:
+        - default
+  k8s-node-02_instance:
+    type: OS::Nova::Server
+    properties:
+      image: { get_param: instance_image }
+      flavor: { get_param: instance_flavor_controller }
+      key_name: { get_resource: keypair }
+      name: { get_param: k8s-node-02_name }
+      availability_zone: { get_param: availability_zone }
+      networks:
+      - network: { get_resource: external_net }
+      - port: { get_resource: k8s-node-02_port }
+      user_data_format: RAW
+      user_data:
+        str_replace:
+          template: |
+            #!/bin/bash
+            echo "Preparing base OS"
+
+            apt-get clean
+            apt-get update
+
+            echo "192.168.1.10 k8s-master" >> /etc/hosts
+            echo "192.168.1.13 k8s-node-02" >> /etc/hosts
+            echo "192.168.1.12 k8s-node-01" >> /etc/hosts
+            echo "192.168.1.254 k8s-gateway" >> /etc/hosts
+
+            echo "auto eth1" >> /etc/network/interfaces.d/eth1.cfg
+            echo "iface eth1 inet dhcp" >> /etc/network/interfaces.d/eth1.cfg
+            ifup eth1
+          params:
+            $node_name: { get_param: k8s-node-02_name }
+  k8s01_floating_ip:
+    type: OS::Nova::FloatingIP
+    properties:
+      pool: { get_param: public_net_id }
+  k8s_floating_ip_association:
+    type: OS::Nova::FloatingIPAssociation
+    properties:
+      floating_ip: { get_resource: k8s01_floating_ip }
+      server_id: { get_resource: k8s-deploy_instance }
