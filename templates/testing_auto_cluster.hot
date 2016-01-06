@@ -1,0 +1,138 @@
+heat_template_version: 2014-10-16
+description: Test autoscaling cluster
+parameters:
+#  config_host:
+#    type: string
+  key_name:
+    type: string
+#  availability_zone:
+#    type: string
+  instance_flavor:
+    type: string
+    description: Instance type for servers
+    default: m1.small
+  instance_image:
+    type: string
+    description: Linux image name to use for the servers.
+    default: fedora-20-heat-cfntools
+  private_net_id:
+    type: string
+  private_net_name:
+    type: string
+  private_net_cidr:
+    type: string
+    description: Private network address (CIDR notation)
+  private_net_pool_start:
+    type: string
+    description: Start of private network IP address allocation pool
+  private_net_pool_end:
+    type: string
+    description: End of private network IP address allocation pool
+resources:
+  private_net:
+    type: OS::Neutron::Net
+    properties:
+      name: { get_param: private_net_name }
+  private_subnet:
+    type: OS::Neutron::Subnet
+    properties:
+      name: { get_param: private_net_name }
+      network_id: { get_resource: private_net }
+      cidr: { get_param: private_net_cidr }
+      allocation_pools:
+        - start: { get_param: private_net_pool_start }
+          end: { get_param: private_net_pool_end }
+  server_scaling_group:
+    type: OS::Heat::AutoScalingGroup
+    properties:
+      min_size: 1
+      max_size: 5
+      resource: 
+        type: lb_server.yaml
+        properties:
+          flavor: {get_param: instance_flavor}
+          image: {get_param: instance_image}
+          key_name: {get_param: key_name}
+          network: { get_resource: private_net }
+          pool_id: {get_resource: load_balancer_pool}
+          metadata: {"metering.stack": {get_param: "OS::stack_id"}}
+          user_data:
+            str_replace:
+              template: |
+                #!/bin/bash
+                curl -o /tmp/install_salt.sh -L https://bootstrap.saltstack.com
+                sudo sh /tmp/install_salt.sh
+                #echo "id: $node_name" >> /etc/salt/minion.d/minion.conf
+                #echo "master: $config_host" >> /etc/salt/minion.d/minion.conf
+                #service salt-minion restart
+                #salt-call pillar.data
+                #salt-call state.sls linux,openssh,salt
+                #salt-call state.highstate
+              params:
+                $config_host: { get_param: instance_flavor }
+  server_scaleup_policy:
+    type: OS::Heat::ScalingPolicy
+    properties:
+      adjustment_type: change_in_capacity
+      auto_scaling_group_id: {get_resource: server_scaling_group}
+      cooldown: 60
+      scaling_adjustment: 1
+  server_scaledown_policy:
+    type: OS::Heat::ScalingPolicy
+    properties:
+      adjustment_type: change_in_capacity
+      auto_scaling_group_id: {get_resource: server_scaling_group}
+      cooldown: 60
+      scaling_adjustment: -1
+  cpu_alarm_high:
+    type: OS::Ceilometer::Alarm
+    properties:
+      description: Scale-up if the average CPU > 50% for 1 minute
+      meter_name: cpu_util
+      statistic: avg
+      period: 60
+      evaluation_periods: 1
+      threshold: 50
+      alarm_actions:
+        - {get_attr: [server_scaleup_policy, alarm_url]}
+      matching_metadata: {'metadata.user_metadata.stack': {get_param: "OS::stack_id"}}
+      comparison_operator: gt
+  cpu_alarm_low:
+    type: OS::Ceilometer::Alarm
+    properties:
+      description: Scale-down if the average CPU < 15% for 10 minutes
+      meter_name: cpu_util
+      statistic: avg
+      period: 600
+      evaluation_periods: 1
+      threshold: 15
+      alarm_actions:
+        - {get_attr: [server_scaledown_policy, alarm_url]}
+      matching_metadata: {'metadata.user_metadata.stack': {get_param: "OS::stack_id"}}
+      comparison_operator: lt
+  monitor:
+    type: OS::Neutron::HealthMonitor
+    properties:
+      type: TCP
+      delay: 5
+      max_retries: 5
+      timeout: 5
+  load_balancer_pool:
+    type: OS::Neutron::Pool
+    properties:
+      protocol: HTTP
+      monitors: [{get_resource: monitor}]
+      subnet_id: {get_resource: private_subnet}
+      lb_method: ROUND_ROBIN
+      vip:
+        protocol_port: 80
+  load_balancer:
+    type: OS::Neutron::LoadBalancer
+    properties:
+      protocol_port: 80
+      pool_id: {get_resource: load_balancer_pool}
+#  load_balancer_floating:
+#    type: OS::Neutron::FloatingIP
+#    properties:
+#      floating_network_id: {get_param: external_network_id}
+#      port_id: {get_attr: [load_balancer_pool, vip, port_id]}
