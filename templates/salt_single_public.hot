@@ -129,7 +129,7 @@ resources:
 
             echo "Configuring salt master ..."
             apt-get install -y salt-master reclass
-            apt-get install -y salt-formula-linux salt-formula-reclass salt-formula-salt salt-formula-openssh salt-formula-ntp salt-formula-git salt-formula-graphite salt-formula-collectd salt-formula-sensu
+            apt-get install -y salt-formula-linux salt-formula-reclass salt-formula-salt salt-formula-openssh salt-formula-ntp salt-formula-git salt-formula-graphite salt-formula-collectd salt-formula-sensu salt-formula-heka
             # Temporary until multi-site horizon is deployed on salt master
             apt-get install -y salt-formula-horizon salt-formula-nginx salt-formula-memcached salt-formula-python salt-formula-supervisor
 
