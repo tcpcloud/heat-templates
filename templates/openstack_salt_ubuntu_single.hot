@@ -17,7 +17,7 @@ parameters:
     default: master
   config_host:
     type: string
-    default: 10.10.10.100
+    default: 10.10.10.200
   cfg01_name:
     type: string
     default: config.openstack.local
@@ -56,14 +56,6 @@ parameters:
     type: string
     description: Private network address (CIDR notation)
     default: 10.10.10.0/24
-  private_net_pool_start:
-    type: string
-    description: Start of private network IP address allocation pool
-    default: 10.10.10.100
-  private_net_pool_end:
-    type: string
-    description: End of private network IP address allocation pool
-    default: 10.10.10.200
   instance_flavor_controller:
     type: string
     description: Instance type for controllers
@@ -106,9 +98,6 @@ resources:
       name: { get_param: private_net_name }
       network_id: { get_resource: private_net }
       cidr: { get_param: private_net_cidr }
-      allocation_pools:
-        - start: { get_param: private_net_pool_start }
-          end: { get_param: private_net_pool_end }
   router:
     type: OS::Neutron::Router
     properties:
@@ -143,7 +132,7 @@ resources:
     properties:
       network_id: { get_resource: private_net }
       fixed_ips:
-        - ip_address: 10.10.10.100
+        - ip_address: 10.10.10.200
       security_groups:
         - default
         - { get_resource: security_group }
@@ -241,7 +230,7 @@ resources:
     properties:
       network_id: { get_resource: private_net }
       fixed_ips:
-        - ip_address: 10.10.10.101
+        - ip_address: 10.10.10.201
       allowed_address_pairs:
         - ip_address: { get_param: cluster_vip_address }
       security_groups:
@@ -290,7 +279,7 @@ resources:
     properties:
       network_id: { get_resource: private_net }
       fixed_ips:
-        - ip_address: 10.10.10.102
+        - ip_address: 10.10.10.202
       security_groups:
         - default
         - { get_resource: security_group }
