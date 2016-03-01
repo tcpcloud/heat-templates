@@ -3,19 +3,21 @@ description: Base Heat stack with single-node Salt master
 parameters:
   key_name:
     type: string
+    default: openstack_salt_ubuntu_single
   key_value:
     type: string
-  availability_zone:
-    type: string
-    default: prd01
   reclass_address:
     type: string
+    default: https://github.com/tcpcloud/workshop-salt-model.git
   reclass_branch:
     type: string
     default: master
   formulas_branch:
     type: string
     default: master
+  config_host:
+    type: string
+    default: 10.10.10.100
   cfg01_name:
     type: string
     default: config.openstack.local
@@ -139,7 +141,7 @@ resources:
   cfg01_port:
     type: OS::Neutron::Port
     properties:
-      network_id: { get_resource: cfg01_port }
+      network_id: { get_resource: private_net }
       fixed_ips:
         - ip_address: 10.10.10.100
       security_groups:
@@ -152,9 +154,8 @@ resources:
       flavor: { get_param: instance_flavor }
       key_name: { get_resource: keypair }
       name: { get_param: cfg01_name }
-      availability_zone: { get_param: availability_zone }
       networks:
-      - port: { get_resource: private_net }
+      - port: { get_resource: cfg01_port }
       user_data_format: RAW
       user_data:
         str_replace:
@@ -251,9 +252,8 @@ resources:
     properties:
       image: { get_param: instance_image }
       flavor: { get_param: instance_flavor_controller }
-      key_name: { get_param: key_name }
+      key_name: { get_resource: keypair }
       name: { get_param: ctl01_name }
-      availability_zone: { get_param: availability_zone }
       networks:
       - port: { get_resource: ctl01_port }
       user_data_format: RAW
@@ -290,7 +290,7 @@ resources:
     properties:
       network_id: { get_resource: private_net }
       fixed_ips:
-        - ip_address: 10.10.10.105
+        - ip_address: 10.10.10.102
       security_groups:
         - default
         - { get_resource: security_group }
@@ -299,11 +299,9 @@ resources:
     properties:
       image: { get_param: instance_image }
       flavor: { get_param: instance_flavor_compute }
-      key_name: { get_param: key_name }
+      key_name: { get_resource: keypair }
       name: { get_param: cmp01_name }
-      availability_zone: { get_param: availability_zone }
       networks:
-      - network: { get_param: service_net_id }
       - port: { get_resource: cmp01_port }
       user_data_format: RAW
       user_data:
