@@ -1,21 +1,23 @@
 heat_template_version: 2013-05-23
-description: Base Heat stack with single-node Salt master
+description: Base Heat stack with OS HA setup
 parameters:
   key_name:
     type: string
+    default: openstack_salt_ubuntu_cluster
   key_value:
     type: string
-  availability_zone:
-    type: string
-    default: prd01
   reclass_address:
     type: string
+    default: https://github.com/tcpcloud/workshop-salt-model.git
   reclass_branch:
     type: string
     default: master
   formulas_branch:
     type: string
     default: master
+  config_host:
+    type: string
+    default: 10.10.10.200
   cfg01_name:
     type: string
     default: config.openstack-ha.local
@@ -47,7 +49,7 @@ parameters:
   instance_image:
     type: string
     description: Image name to use for the servers.
-    default: ubuntu-14-04-x64-tcpcloud
+    default: ubuntu-14-04-x64-1452267252
   public_net_id:
     type: string
     description: ID or name of public network for which floating IP addresses will be allocated
@@ -63,14 +65,6 @@ parameters:
     type: string
     description: Private network address (CIDR notation)
     default: 10.10.10.0/24
-  private_net_pool_start:
-    type: string
-    description: Start of private network IP address allocation pool
-    default: 10.10.10.100
-  private_net_pool_end:
-    type: string
-    description: End of private network IP address allocation pool
-    default: 10.10.10.200
   instance_flavor_controller:
     type: string
     description: Instance type for controllers
@@ -92,10 +86,6 @@ parameters:
     constraints:
       - allowed_values: [m1.tiny, m1.small, m1.medium, m1.large]
         description: instance_type must be a valid instance type
-  instance_image:
-    type: string
-    description: Image name to use for the servers.
-    default: ubuntu-14-04-x64-tcpcloud
 resources:
   keypair:
     type: OS::Nova::KeyPair
@@ -113,9 +103,6 @@ resources:
       name: { get_param: private_net_name }
       network_id: { get_resource: private_net }
       cidr: { get_param: private_net_cidr }
-      allocation_pools:
-        - start: { get_param: private_net_pool_start }
-          end: { get_param: private_net_pool_end }
   router:
     type: OS::Neutron::Router
     properties:
@@ -148,9 +135,9 @@ resources:
   cfg01_port:
     type: OS::Neutron::Port
     properties:
-      network_id: { get_resource: cfg01_port }
+      network_id: { get_resource: private_net }
       fixed_ips:
-        - ip_address: 10.10.10.100
+        - ip_address: 10.10.10.200
       security_groups:
         - default
         - { get_resource: security_group }
@@ -161,9 +148,8 @@ resources:
       flavor: { get_param: instance_flavor }
       key_name: { get_resource: keypair }
       name: { get_param: cfg01_name }
-      availability_zone: { get_param: availability_zone }
       networks:
-      - port: { get_resource: private_net }
+      - port: { get_resource: cfg01_port }
       user_data_format: RAW
       user_data:
         str_replace:
@@ -237,7 +223,7 @@ resources:
             salt-call --no-color state.sls linux openssh salt.minion
             salt-call --no-color state.sls salt.master
             service salt-minion restart
-            #salt-call --no-color state.highstate
+            salt-call --no-color state.highstate
           params:
             $node_name: { get_param: cfg01_name }
             $reclass_address: { get_param: reclass_address }
@@ -249,7 +235,7 @@ resources:
     properties:
       network_id: { get_resource: private_net }
       fixed_ips:
-        - ip_address: 10.10.10.101
+        - ip_address: 10.10.10.201
       allowed_address_pairs:
         - ip_address: { get_param: cluster_vip_address }
       security_groups:
@@ -260,9 +246,8 @@ resources:
     properties:
       image: { get_param: instance_image }
       flavor: { get_param: instance_flavor_controller }
-      key_name: { get_param: key_name }
+      key_name: { get_resource: keypair }
       name: { get_param: ctl01_name }
-      availability_zone: { get_param: availability_zone }
       networks:
       - port: { get_resource: ctl01_port }
       user_data_format: RAW
@@ -299,7 +284,7 @@ resources:
     properties:
       network_id: { get_resource: private_net }
       fixed_ips:
-        - ip_address: 10.10.10.102
+        - ip_address: 10.10.10.202
       allowed_address_pairs:
         - ip_address: { get_param: cluster_vip_address }
       security_groups:
@@ -310,11 +295,9 @@ resources:
     properties:
       image: { get_param: instance_image }
       flavor: { get_param: instance_flavor_controller }
-      key_name: { get_param: key_name }
+      key_name: { get_resource: keypair }
       name: { get_param: ctl02_name }
-      availability_zone: { get_param: availability_zone }
       networks:
-      - network: { get_param: service_net_id }
       - port: { get_resource: ctl02_port }
       user_data_format: RAW
       user_data:
@@ -350,7 +333,7 @@ resources:
     properties:
       network_id: { get_resource: private_net }
       fixed_ips:
-        - ip_address: 10.10.10.103
+        - ip_address: 10.10.10.203
       allowed_address_pairs:
         - ip_address: { get_param: cluster_vip_address }
       security_groups:
@@ -361,11 +344,9 @@ resources:
     properties:
       image: { get_param: instance_image }
       flavor: { get_param: instance_flavor_controller }
-      key_name: { get_param: key_name }
+      key_name: { get_resource: keypair }
       name: { get_param: ctl03_name }
-      availability_zone: { get_param: availability_zone }
       networks:
-      - network: { get_param: service_net_id }
       - port: { get_resource: ctl03_port }
       user_data_format: RAW
       user_data:
@@ -402,7 +383,7 @@ resources:
     properties:
       network_id: { get_resource: private_net }
       fixed_ips:
-        - ip_address: 10.10.10.105
+        - ip_address: 10.10.10.211
       security_groups:
         - default
         - { get_resource: security_group }
@@ -411,11 +392,9 @@ resources:
     properties:
       image: { get_param: instance_image }
       flavor: { get_param: instance_flavor_compute }
-      key_name: { get_param: key_name }
+      key_name: { get_resource: keypair }
       name: { get_param: cmp01_name }
-      availability_zone: { get_param: availability_zone }
       networks:
-      - network: { get_param: service_net_id }
       - port: { get_resource: cmp01_port }
       user_data_format: RAW
       user_data:
@@ -452,7 +431,7 @@ resources:
     properties:
       network_id: { get_resource: private_net }
       fixed_ips:
-        - ip_address: 10.10.10.106
+        - ip_address: 10.10.10.212
       security_groups:
         - default
         - { get_resource: security_group }
@@ -461,11 +440,9 @@ resources:
     properties:
       image: { get_param: instance_image }
       flavor: { get_param: instance_flavor_compute }
-      key_name: { get_param: key_name }
+      key_name: { get_resource: keypair }
       name: { get_param: cmp02_name }
-      availability_zone: { get_param: availability_zone }
       networks:
-      - network: { get_param: service_net_id }
       - port: { get_resource: cmp02_port }
       user_data_format: RAW
       user_data:
