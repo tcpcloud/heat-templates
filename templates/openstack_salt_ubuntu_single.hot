@@ -27,6 +27,9 @@ parameters:
   cmp01_name:
     type: string
     default: compute.openstack.local
+  prx01_name:
+    type: string
+    default: proxy.openstack.local
   cluster_vip_address:
     type: string
     default: 10.10.10.254
@@ -215,10 +218,59 @@ resources:
             reclass -n $node_name
 
             echo "Running complete state ..."
-            salt-call --no-color state.sls linux openssh salt.minion
+            salt-call --no-color state.sls linux,openssh,salt.minion
             salt-call --no-color state.sls salt.master
             service salt-minion restart
-            #salt-call --no-color state.highstate
+            salt-call --no-color state.highstate
+
+            i=1
+            while [ $i -lt 16 ]; do 
+                if [[ -n $(salt 'control.openstack.local' test.ping | grep "control.openstack.local") ]]; then 
+                    echo "Configuring control node ..."
+                    # Basic configuration
+                    salt 'control.openstack.local' --no-color state.sls linux,openssh,salt
+                    sleep 10
+                    # Infrastructure services deployment
+                    salt 'control.openstack.local' --no-color state.sls mysql,rabbitmq
+                    # OpenStack and OpenContrail deployment
+                    salt 'control.openstack.local' --no-color state.highstate
+                    break
+                else 
+                    echo "[ Try: $i/15 ] Waiting for control node to become available ..."
+                    (( i++ )) 
+                    sleep 10
+                fi
+            done 
+
+            i=1
+            while [ $i -lt 16 ]; do
+                if [[ -n $(salt 'compute.openstack.local' test.ping | grep "compute.openstack.local") ]]; then
+                    echo "Configuring compute node ..."
+                    salt 'compute.openstack.local' --no-color state.sls linux,openssh,salt
+                    sleep 10
+                    salt 'compute.openstack.local' --no-color state.highstate 
+                    break
+                else 
+                    echo "[ Try: $i/15 ] Waiting for compute node to become available ..."
+                    (( i++ )) 
+                    sleep 10
+                fi  
+            done 
+
+            while [ $i -lt 16 ]; do
+                if [[ -n $(salt 'proxy.openstack.local' test.ping | grep "proxy.openstack.local") ]]; then
+                    echo "Configuring proxy node ..."
+                    salt 'proxy.openstack.local' --no-color state.sls linux,openssh,salt
+                    sleep 10
+                    #salt 'proxy.openstack.local' --no-color state.highstate 
+                    break 
+                else 
+                    echo "[ Try: $i/15 ] Waiting for proxy node to become available ..."
+                    (( i++ )) 
+                    sleep 10
+                fi  
+            done 
+
           params:
             $node_name: { get_param: cfg01_name }
             $reclass_address: { get_param: reclass_address }
@@ -251,8 +303,6 @@ resources:
           template: |
             #!/bin/bash
             echo "Preparing base OS"
-            echo -e "\n# The secondary network interface\nauto eth1\niface eth1 inet static\naddress $eth1_addr\nnetmask 255.255.255.0" >> /etc/network/interfaces
-            ifup eth1
             which wget >/dev/null || (apt-get update; apt-get install -y wget)
 
             echo "deb [arch=amd64] http://apt.tcpcloud.eu/nightly/ trusty main security extra tcp" > /etc/apt/sources.list
@@ -266,14 +316,9 @@ resources:
             echo "master: $config_host" >> /etc/salt/minion
             rm -f /etc/salt/pki/minion/minion_master.pub
             service salt-minion restart
-            echo "Showing node metadata..."
-            salt-call --no-color pillar.data
-            echo "Running complete state ..."
-            salt-call --no-color state.sls linux,openssh,salt
           params:
             $node_name: { get_param: ctl01_name }
             $config_host: { get_param: config_host }
-            $eth1_addr: { get_attr: [ctl01_port, fixed_ips, 0, ip_address] }
   cmp01_port:
     type: OS::Neutron::Port
     properties:
@@ -298,8 +343,6 @@ resources:
           template: |
             #!/bin/bash
             echo "Preparing base OS"
-            echo -e "\n# The secondary network interface\nauto eth1\niface eth1 inet static\naddress $eth1_addr\nnetmask 255.255.255.0" >> /etc/network/interfaces
-            ifup eth1
             which wget >/dev/null || (apt-get update; apt-get install -y wget)
 
             echo "deb [arch=amd64] http://apt.tcpcloud.eu/nightly/ trusty main security extra tcp" > /etc/apt/sources.list
@@ -313,12 +356,56 @@ resources:
             echo "master: $config_host" >> /etc/salt/minion
             rm -f /etc/salt/pki/minion/minion_master.pub
             service salt-minion restart
-            echo "Showing node metadata..."
-            salt-call --no-color pillar.data
-            echo "Running complete state ..."
-            salt-call --no-color state.sls linux,openssh,salt
-#            salt-call --no-color state.highstate
           params:
             $node_name: { get_param: cmp01_name }
             $config_host: { get_param: config_host }
-            $eth1_addr: { get_attr: [cmp01_port, fixed_ips, 0, ip_address] }
+  prx01_floating_ip:
+    type: OS::Nova::FloatingIP
+    properties:
+      pool: { get_param: public_net_id }
+  prx01_floating_ip_association:
+    type: OS::Nova::FloatingIPAssociation
+    properties:
+      floating_ip: { get_resource: prx01_floating_ip }
+      server_id: { get_resource: prx01_instance }
+  prx01_port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_resource: private_net }
+      fixed_ips:
+        - ip_address: 10.10.10.203
+      security_groups:
+        - default
+        - { get_resource: security_group }
+  prx01_instance:
+    type: OS::Nova::Server
+    properties:
+      image: { get_param: instance_image }
+      flavor: { get_param: instance_flavor_support }
+      key_name: { get_resource: keypair }
+      name: { get_param: prx01_name }
+      networks:
+      - port: { get_resource: prx01_port }
+      user_data_format: RAW
+      user_data:
+        str_replace:
+          template: |
+            #!/bin/bash
+            echo "Preparing base OS"
+            which wget >/dev/null || (apt-get update; apt-get install -y wget)
+
+            echo "deb [arch=amd64] http://apt.tcpcloud.eu/nightly/ trusty main security extra tcp" > /etc/apt/sources.list
+            wget -O - http://apt.tcpcloud.eu/public.gpg | apt-key add -
+
+            apt-get clean
+            apt-get update
+            apt-get install -y salt-minion
+
+            echo "id: $node_name" >> /etc/salt/minion
+            echo "master: $config_host" >> /etc/salt/minion
+            rm -f /etc/salt/pki/minion/minion_master.pub
+            service salt-minion restart
+          params:
+            $node_name: { get_param: prx01_name }
+            $config_host: { get_param: config_host }
+
