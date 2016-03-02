@@ -1,5 +1,5 @@
 heat_template_version: 2013-05-23
-description: Base Heat stack with single-node Salt master
+description: Base Heat stack with simple OS setup
 parameters:
   key_name:
     type: string
@@ -40,7 +40,7 @@ parameters:
   instance_image:
     type: string
     description: Image name to use for the servers.
-    default: ubuntu-14-04-x64-tcpcloud
+    default: ubuntu-14-04-x64-1452267252
   public_net_id:
     type: string
     description: ID or name of public network for which floating IP addresses will be allocated
