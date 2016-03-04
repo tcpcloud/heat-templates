@@ -36,6 +36,9 @@ parameters:
   cmp02_name:
     type: string
     default: compute02.openstack-ha.local
+  prx01_name:
+    type: string
+    default: proxy.openstack-ha.local
   cluster_vip_address:
     type: string
     default: 10.10.10.254
@@ -224,6 +227,51 @@ resources:
             salt-call --no-color state.sls salt.master
             service salt-minion restart
             salt-call --no-color state.highstate
+
+            i=1
+            while [ $i -lt 16 ]; do
+                if [ $(salt '*' test.ping | grep True | wc -l) -lt 7 ]; then
+                    echo "[ Try: $i/15 ] Waiting for minion nodes to become available ..."
+                    (( i++ ))
+                    sleep 20
+                else
+                    echo "Basic configuration of all nodes ..."
+                    salt '*' state.sls linux,openssh,salt.minion
+                    sleep 10
+                    echo "Configuring keepalived service ..."
+                    salt-run state.orchestrate keepalived.orchestrate 2> /dev/null
+                    echo "Configuring glusterfs service ..."
+                    salt-run state.orchestrate glusterfs.orchestrate 2> /dev/null
+                    echo "Configuring rabbitmq service ..."
+                    salt-run state.orchestrate rabbitmq.orchestrate.cluster 2> /dev/null
+                    echo "Configuring galera service ..."
+                    salt-run state.orchestrate galera.orchestrate 2> /dev/null
+                    echo "Configuring infrastructure services ..."
+                    salt-run state.orchestrate memcached.orchestrate 2> /dev/null
+                    salt-run state.orchestrate haproxy.orchestrate 2> /dev/null
+                    salt 'control*' state.sls keystone
+                    echo "Finishing configuration of control01 node ..."
+                    salt 'control01.openstack-ha.local' state.highstate
+                    salt 'control01.openstack-ha.local' state.highstate
+                    echo "Finishing configuration of control02 node ..."
+                    salt 'control02.openstack-ha.local' state.highstate
+                    salt 'control02.openstack-ha.local' state.highstate
+                    echo "Finishing configuration of control03 node ..."
+                    salt 'control03.openstack-ha.local' state.highstate
+                    salt 'control03.openstack-ha.local' state.highstate
+                    echo "Finishing configuration of compute01 node ..."
+                    salt 'compute01.openstack-ha.local' state.highstate
+                    salt 'compute01.openstack-ha.local' state.highstate
+                    echo "Finishing configuration of compute01 node ..."
+                    salt 'compute02.openstack-ha.local' state.highstate
+                    salt 'compute02.openstack-ha.local' state.highstate
+                    echo "Finishing configuration of proxy node ..."
+                    salt 'proxy.openstack-ha.local' state.highstate
+                    salt 'proxy.openstack-ha.local' state.highstate
+                    echo "Setup complete!"
+                    break
+                fi
+            done
           params:
             $node_name: { get_param: cfg01_name }
             $reclass_address: { get_param: reclass_address }
@@ -256,8 +304,6 @@ resources:
           template: |
             #!/bin/bash
             echo "Preparing base OS"
-            echo -e "\n# The secondary network interface\nauto eth1\niface eth1 inet static\naddress $eth1_addr\nnetmask 255.255.255.0" >> /etc/network/interfaces
-            ifup eth1
             which wget >/dev/null || (apt-get update; apt-get install -y wget)
 
             echo "deb [arch=amd64] http://apt.tcpcloud.eu/nightly/ trusty main security extra tcp" > /etc/apt/sources.list
@@ -271,14 +317,20 @@ resources:
             echo "master: $config_host" >> /etc/salt/minion
             rm -f /etc/salt/pki/minion/minion_master.pub
             service salt-minion restart
-            echo "Showing node metadata..."
-            salt-call --no-color pillar.data
-            echo "Running complete state ..."
-            salt-call --no-color state.sls linux,openssh,salt
+
+            i=1
+            while [ $i -lt 16 ]; do
+                if [[ -z $(salt-call test.ping | grep "True") ]]; then
+                    echo "[ Try: $i/15 ] Waiting for config node to become available ..."
+                    sleep 20
+                else
+                    echo "Config node ready!"
+                    break
+                fi
+            done
           params:
             $node_name: { get_param: ctl01_name }
             $config_host: { get_param: config_host }
-            $eth1_addr: { get_attr: [ctl01_port, fixed_ips, 0, ip_address] }
   ctl02_port:
     type: OS::Neutron::Port
     properties:
@@ -305,8 +357,6 @@ resources:
           template: |
             #!/bin/bash
             echo "Preparing base OS"
-            echo -e "\n# The secondary network interface\nauto eth1\niface eth1 inet static\naddress $eth1_addr\nnetmask 255.255.255.0" >> /etc/network/interfaces
-            ifup eth1
             which wget >/dev/null || (apt-get update; apt-get install -y wget)
 
             echo "deb [arch=amd64] http://apt.tcpcloud.eu/nightly/ trusty main security extra tcp" > /etc/apt/sources.list
@@ -320,14 +370,20 @@ resources:
             echo "master: $config_host" >> /etc/salt/minion
             rm -f /etc/salt/pki/minion/minion_master.pub
             service salt-minion restart
-            echo "Showing node metadata..."
-            salt-call --no-color pillar.data
-            echo "Running complete state ..."
-            salt-call --no-color state.sls linux,openssh,salt
+
+            i=1
+            while [ $i -lt 16 ]; do
+                if [[ -z $(salt-call test.ping | grep "True") ]]; then
+                    echo "[ Try: $i/15 ] Waiting for config node to become available ..."
+                    sleep 20
+                else
+                    echo "Config node ready!"
+                    break
+                fi
+            done
           params:
             $node_name: { get_param: ctl02_name }
             $config_host: { get_param: config_host }
-            $eth1_addr: { get_attr: [ctl02_port, fixed_ips, 0, ip_address] }
   ctl03_port:
     type: OS::Neutron::Port
     properties:
@@ -354,8 +410,6 @@ resources:
           template: |
             #!/bin/bash
             echo "Preparing base OS"
-            echo -e "\n# The secondary network interface\nauto eth1\niface eth1 inet static\naddress $eth1_addr\nnetmask 255.255.255.0" >> /etc/network/interfaces
-            ifup eth1
             which wget >/dev/null || (apt-get update; apt-get install -y wget)
 
             echo "deb [arch=amd64] http://apt.tcpcloud.eu/nightly/ trusty main security extra tcp" > /etc/apt/sources.list
@@ -369,15 +423,20 @@ resources:
             echo "master: $config_host" >> /etc/salt/minion
             rm -f /etc/salt/pki/minion/minion_master.pub
             service salt-minion restart
-            echo "Showing node metadata..."
-            salt-call --no-color pillar.data
-            echo "Running complete state ..."
-            salt-call --no-color state.sls linux,openssh,salt
-#            salt-call --no-color state.highstate
+
+            i=1
+            while [ $i -lt 16 ]; do
+                if [[ -z $(salt-call test.ping | grep "True") ]]; then
+                    echo "[ Try: $i/15 ] Waiting for config node to become available ..."
+                    sleep 20
+                else
+                    echo "Config node ready!"
+                    break
+                fi
+            done
           params:
             $node_name: { get_param: ctl03_name }
             $config_host: { get_param: config_host }
-            $eth1_addr: { get_attr: [ctl03_port, fixed_ips, 0, ip_address] }
   cmp01_port:
     type: OS::Neutron::Port
     properties:
@@ -402,8 +461,6 @@ resources:
           template: |
             #!/bin/bash
             echo "Preparing base OS"
-            echo -e "\n# The secondary network interface\nauto eth1\niface eth1 inet static\naddress $eth1_addr\nnetmask 255.255.255.0" >> /etc/network/interfaces
-            ifup eth1
             which wget >/dev/null || (apt-get update; apt-get install -y wget)
 
             echo "deb [arch=amd64] http://apt.tcpcloud.eu/nightly/ trusty main security extra tcp" > /etc/apt/sources.list
@@ -417,15 +474,20 @@ resources:
             echo "master: $config_host" >> /etc/salt/minion
             rm -f /etc/salt/pki/minion/minion_master.pub
             service salt-minion restart
-            echo "Showing node metadata..."
-            salt-call --no-color pillar.data
-            echo "Running complete state ..."
-            salt-call --no-color state.sls linux,openssh,salt
-#            salt-call --no-color state.highstate
+
+            i=1
+            while [ $i -lt 16 ]; do
+                if [[ -z $(salt-call test.ping | grep "True") ]]; then
+                    echo "[ Try: $i/15 ] Waiting for config node to become available ..."
+                    sleep 20
+                else
+                    echo "Config node ready!"
+                    break
+                fi
+            done
           params:
             $node_name: { get_param: cmp01_name }
             $config_host: { get_param: config_host }
-            $eth1_addr: { get_attr: [cmp01_port, fixed_ips, 0, ip_address] }
   cmp02_port:
     type: OS::Neutron::Port
     properties:
@@ -450,8 +512,6 @@ resources:
           template: |
             #!/bin/bash
             echo "Preparing base OS"
-            echo -e "\n# The secondary network interface\nauto eth1\niface eth1 inet static\naddress $eth1_addr\nnetmask 255.255.255.0" >> /etc/network/interfaces
-            ifup eth1
             which wget >/dev/null || (apt-get update; apt-get install -y wget)
 
             echo "deb [arch=amd64] http://apt.tcpcloud.eu/nightly/ trusty main security extra tcp" > /etc/apt/sources.list
@@ -465,11 +525,78 @@ resources:
             echo "master: $config_host" >> /etc/salt/minion
             rm -f /etc/salt/pki/minion/minion_master.pub
             service salt-minion restart
-            echo "Showing node metadata..."
-            salt-call --no-color pillar.data
-            echo "Running complete state ..."
-            salt-call --no-color state.sls linux,openssh,salt
+
+            i=1
+            while [ $i -lt 16 ]; do
+                if [[ -z $(salt-call test.ping | grep "True") ]]; then
+                    echo "[ Try: $i/15 ] Waiting for config node to become available ..."
+                    sleep 20
+                else
+                    echo "Config node ready!"
+                    break
+                fi
+            done
           params:
             $node_name: { get_param: cmp02_name }
             $config_host: { get_param: config_host }
-            $eth1_addr: { get_attr: [cmp02_port, fixed_ips, 0, ip_address] }
+  prx01_floating_ip:
+    type: OS::Nova::FloatingIP
+    properties:
+      pool: { get_param: public_net_id }
+  prx01_floating_ip_association:
+    type: OS::Nova::FloatingIPAssociation
+    properties:
+      floating_ip: { get_resource: prx01_floating_ip }
+      server_id: { get_resource: prx01_instance }
+  prx01_port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_resource: private_net }
+      fixed_ips:
+        - ip_address: 10.10.10.204
+      security_groups:
+        - default
+        - { get_resource: security_group }
+  prx01_instance:
+    type: OS::Nova::Server
+    properties:
+      image: { get_param: instance_image }
+      flavor: { get_param: instance_flavor_support }
+      key_name: { get_resource: keypair }
+      name: { get_param: prx01_name }
+      networks:
+      - port: { get_resource: prx01_port }
+      user_data_format: RAW
+      user_data:
+        str_replace:
+          template: |
+            #!/bin/bash
+            echo "Preparing base OS"
+            which wget >/dev/null || (apt-get update; apt-get install -y wget)
+
+            echo "deb [arch=amd64] http://apt.tcpcloud.eu/nightly/ trusty main security extra tcp" > /etc/apt/sources.list
+            wget -O - http://apt.tcpcloud.eu/public.gpg | apt-key add -
+
+            apt-get clean
+            apt-get update
+            apt-get install -y salt-minion
+
+            echo "id: $node_name" >> /etc/salt/minion
+            echo "master: $config_host" >> /etc/salt/minion
+            rm -f /etc/salt/pki/minion/minion_master.pub
+            service salt-minion restart
+
+            i=1
+            while [ $i -lt 16 ]; do
+                if [[ -z $(salt-call test.ping | grep "True") ]]; then
+                    echo "[ Try: $i/15 ] Waiting for config node to become available ..."
+                    sleep 20
+                else
+                    echo "Config node ready!"
+                    break
+                fi
+            done
+          params:
+            $node_name: { get_param: prx01_name }
+            $config_host: { get_param: config_host }
+
