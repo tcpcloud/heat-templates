@@ -262,7 +262,7 @@ resources:
                     echo "Finishing configuration of compute01 node ..."
                     salt 'compute01.openstack-ha.local' state.highstate
                     salt 'compute01.openstack-ha.local' state.highstate
-                    echo "Finishing configuration of compute01 node ..."
+                    echo "Finishing configuration of compute02 node ..."
                     salt 'compute02.openstack-ha.local' state.highstate
                     salt 'compute02.openstack-ha.local' state.highstate
                     echo "Finishing configuration of proxy node ..."
