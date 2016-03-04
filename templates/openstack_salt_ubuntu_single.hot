@@ -238,7 +238,7 @@ resources:
                 else 
                     echo "[ Try: $i/15 ] Waiting for control node to become available ..."
                     (( i++ )) 
-                    sleep 10
+                    sleep 20
                 fi
             done 
 
@@ -253,7 +253,7 @@ resources:
                 else 
                     echo "[ Try: $i/15 ] Waiting for compute node to become available ..."
                     (( i++ )) 
-                    sleep 10
+                    sleep 20
                 fi  
             done 
 
@@ -267,7 +267,7 @@ resources:
                 else 
                     echo "[ Try: $i/15 ] Waiting for proxy node to become available ..."
                     (( i++ )) 
-                    sleep 10
+                    sleep 20
                 fi  
             done 
 
@@ -316,6 +316,17 @@ resources:
             echo "master: $config_host" >> /etc/salt/minion
             rm -f /etc/salt/pki/minion/minion_master.pub
             service salt-minion restart
+
+            i=1
+            while [ $i -lt 16 ]; do
+                if [[ -z $(salt-call test.ping | grep "True") ]]; then
+                    echo "[ Try: $i/15 ] Waiting for config node to become available ..."
+                    sleep 20
+                else
+                    echo "Config node ready!"
+                    break
+                fi
+            done
           params:
             $node_name: { get_param: ctl01_name }
             $config_host: { get_param: config_host }
@@ -356,6 +367,17 @@ resources:
             echo "master: $config_host" >> /etc/salt/minion
             rm -f /etc/salt/pki/minion/minion_master.pub
             service salt-minion restart
+
+            i=1
+            while [ $i -lt 16 ]; do
+                if [[ -z $(salt-call test.ping | grep "True") ]]; then
+                    echo "[ Try: $i/15 ] Waiting for config node to become available ..."
+                    sleep 20
+                else
+                    echo "Config node ready!"
+                    break
+                fi
+            done
           params:
             $node_name: { get_param: cmp01_name }
             $config_host: { get_param: config_host }
@@ -405,6 +427,17 @@ resources:
             echo "master: $config_host" >> /etc/salt/minion
             rm -f /etc/salt/pki/minion/minion_master.pub
             service salt-minion restart
+
+            i=1
+            while [ $i -lt 16 ]; do
+                if [[ -z $(salt-call test.ping | grep "True") ]]; then
+                    echo "[ Try: $i/15 ] Waiting for config node to become available ..."
+                    sleep 20
+                else
+                    echo "Config node ready!"
+                    break
+                fi
+            done
           params:
             $node_name: { get_param: prx01_name }
             $config_host: { get_param: config_host }
