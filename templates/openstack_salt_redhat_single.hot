@@ -44,6 +44,10 @@ parameters:
     type: string
     description: Image name to use for the servers.
     default: CentOS-7-x86_64-GenericCloud-1509
+  config_image:
+    type: string
+    description: Image name to use for config node.
+    default: ubuntu-14-04-x64-1452267252
   public_net_id:
     type: string
     description: ID or name of public network for which floating IP addresses will be allocated
@@ -138,7 +142,7 @@ resources:
   cfg01_instance:
     type: OS::Nova::Server
     properties:
-      image: { get_param: instance_image }
+      image: { get_param: config_image }
       flavor: { get_param: instance_flavor }
       key_name: { get_resource: keypair }
       name: { get_param: cfg01_name }
