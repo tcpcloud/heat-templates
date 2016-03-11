@@ -1,0 +1,602 @@
+heat_template_version: 2013-05-23
+description: Base Heat stack with OS HA setup
+parameters:
+  key_name:
+    type: string
+    default: openstack_salt_redhat_cluster
+  key_value:
+    type: string
+  reclass_address:
+    type: string
+    default: https://github.com/tcpcloud/workshop-salt-model.git
+  reclass_branch:
+    type: string
+    default: master
+  formulas_branch:
+    type: string
+    default: master
+  config_host:
+    type: string
+    default: 10.10.10.200
+  cfg01_name:
+    type: string
+    default: config.openstack-ha.local
+  ctl01_name:
+    type: string
+    default: control01.openstack-ha.local
+  ctl02_name:
+    type: string
+    default: control02.openstack-ha.local
+  ctl03_name:
+    type: string
+    default: control03.openstack-ha.local
+  cmp01_name:
+    type: string
+    default: compute01.openstack-ha.local
+  cmp02_name:
+    type: string
+    default: compute02.openstack-ha.local
+  prx01_name:
+    type: string
+    default: proxy.openstack-ha.local
+  cluster_vip_address:
+    type: string
+    default: 10.10.10.254
+  instance_flavor:
+    type: string
+    description: Instance type for servers
+    default: m1.small
+    constraints:
+      - allowed_values: [m1.tiny, m1.small, m1.medium, m1.large]
+        description: instance_type must be a valid instance type
+  instance_image:
+    type: string
+    description: Image name to use for the servers.
+    default: CentOS-7-x86_64-GenericCloud-1509
+  public_net_id:
+    type: string
+    description: ID or name of public network for which floating IP addresses will be allocated
+  router_name:
+    type: string
+    description: Name of router to be created
+    default: openstack-ha-router
+  private_net_name:
+    type: string
+    description: Name of private network to be created
+    default: openstack-ha-net
+  private_net_cidr:
+    type: string
+    description: Private network address (CIDR notation)
+    default: 10.10.10.0/24
+  instance_flavor_controller:
+    type: string
+    description: Instance type for controllers
+    default: m1.large
+    constraints:
+      - allowed_values: [m1.tiny, m1.small, m1.medium, m1.large]
+        description: instance_type must be a valid instance type
+  instance_flavor_compute:
+    type: string
+    description: Instance type for compute nodes
+    default: m1.medium
+    constraints:
+      - allowed_values: [m1.tiny, m1.small, m1.medium, m1.large]
+        description: instance_type must be a valid instance type
+  instance_flavor_support:
+    type: string
+    description: Instance type for support nodes (web, monitoring, etc.)
+    default: m1.small
+    constraints:
+      - allowed_values: [m1.tiny, m1.small, m1.medium, m1.large]
+        description: instance_type must be a valid instance type
+resources:
+  keypair:
+    type: OS::Nova::KeyPair
+    properties:
+      name: { get_param: key_name }
+      public_key: { get_param: key_value }
+      save_private_key: false
+  private_net:
+    type: OS::Neutron::Net
+    properties:
+      name: { get_param: private_net_name }
+  private_subnet:
+    type: OS::Neutron::Subnet
+    properties:
+      name: { get_param: private_net_name }
+      network_id: { get_resource: private_net }
+      cidr: { get_param: private_net_cidr }
+  router:
+    type: OS::Neutron::Router
+    properties:
+      name: { get_param: router_name }
+      external_gateway_info:
+        network: { get_param: public_net_id }
+  router_interface:
+    type: OS::Neutron::RouterInterface
+    properties:
+      router_id: { get_resource: router }
+      subnet_id: { get_resource: private_subnet }
+  security_group:
+    type: OS::Neutron::SecurityGroup
+    properties:
+      name: { get_param: router_name }
+      rules:
+        - protocol: tcp
+          remote_ip_prefix: 0.0.0.0/0
+        - protocol: icmp
+          remote_ip_prefix: 0.0.0.0/0
+  cfg01_floating_ip:
+    type: OS::Nova::FloatingIP
+    properties:
+      pool: { get_param: public_net_id }
+  cfg01_floating_ip_association:
+    type: OS::Nova::FloatingIPAssociation
+    properties:
+      floating_ip: { get_resource: cfg01_floating_ip }
+      server_id: { get_resource: cfg01_instance }
+  cfg01_port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_resource: private_net }
+      fixed_ips:
+        - ip_address: 10.10.10.200
+      security_groups:
+        - default
+        - { get_resource: security_group }
+  cfg01_instance:
+    type: OS::Nova::Server
+    properties:
+      image: { get_param: instance_image }
+      flavor: { get_param: instance_flavor }
+      key_name: { get_resource: keypair }
+      name: { get_param: cfg01_name }
+      networks:
+      - port: { get_resource: cfg01_port }
+      user_data_format: RAW
+      user_data:
+        str_replace:
+          template: |
+            #!/bin/bash
+            echo "Preparing base OS"
+            which wget >/dev/null || (apt-get update; apt-get install -y wget)
+
+            echo "deb [arch=amd64] http://apt.tcpcloud.eu/nightly/ trusty main security extra tcp tcp-salt" > /etc/apt/sources.list
+            wget -O - http://apt.tcpcloud.eu/public.gpg | apt-key add -
+
+            apt-get clean
+            apt-get update
+
+            echo "Configuring salt master ..."
+            apt-get install -y salt-master reclass
+            apt-get install -y salt-formula-linux salt-formula-reclass salt-formula-salt salt-formula-openssh salt-formula-ntp salt-formula-git salt-formula-graphite salt-formula-collectd salt-formula-sensu salt-formula-heka
+            # Temporary until multi-site horizon is deployed on salt master
+            apt-get install -y salt-formula-horizon salt-formula-nginx salt-formula-memcached salt-formula-python salt-formula-supervisor
+
+            cat << 'EOF' >> /etc/salt/master.d/master.conf
+            file_roots:
+              base:
+              - /usr/share/salt-formulas/env
+            pillar_opts: False
+            open_mode: True
+            reclass: &reclass
+              storage_type: yaml_fs
+              inventory_base_uri: /srv/salt/reclass
+            ext_pillar:
+              - reclass: *reclass
+            master_tops:
+              reclass: *reclass
+            EOF
+
+            echo "Configuring reclass ..."
+            git clone $reclass_address /srv/salt/reclass -b $reclass_branch
+            mkdir -p /srv/salt/reclass/classes/service
+
+            for i in /usr/share/salt-formulas/reclass/service/*; do
+              ln -s $i /srv/salt/reclass/classes/service/
+            done
+
+            [ ! -d /etc/reclass ] && mkdir /etc/reclass
+            cat << 'EOF' >> /etc/reclass/reclass-config.yml
+            storage_type: yaml_fs
+            pretty_print: True
+            output: yaml
+            inventory_base_uri: /srv/salt/reclass
+            EOF
+
+            echo "Configuring salt minion ..."
+            apt-get install -y salt-minion
+            [ ! -d /etc/salt/minion.d ] && mkdir -p /etc/salt/minion.d
+            cat << "EOF" >> /etc/salt/minion.d/minion.conf
+            id: $node_name
+            master: localhost
+            EOF
+
+            echo "Restarting services ..."
+            service salt-master restart
+            rm -f /etc/salt/pki/minion/minion_master.pub
+            service salt-minion restart
+
+            echo "Showing system info and metadata ..."
+            salt-call --no-color grains.items
+            salt-call --no-color pillar.data
+            reclass -n $node_name
+
+            echo "Running complete state ..."
+            salt-call --no-color state.sls linux openssh salt.minion
+            salt-call --no-color state.sls salt.master
+            service salt-minion restart
+            salt-call --no-color state.highstate
+
+            i=1
+            while [ $i -lt 16 ]; do
+                if [ $(salt '*' test.ping | grep True | wc -l) -lt 7 ]; then
+                    echo "[ Try: $i/15 ] Waiting for minion nodes to become available ..."
+                    (( i++ ))
+                    sleep 20
+                else
+                    echo "Basic configuration of all nodes ..."
+                    salt '*' state.sls linux,openssh,salt.minion
+                    sleep 10
+                    echo "Configuring keepalived service ..."
+                    salt-run state.orchestrate keepalived.orchestrate 2> /dev/null
+                    echo "Configuring glusterfs service ..."
+                    salt-run state.orchestrate glusterfs.orchestrate 2> /dev/null
+                    echo "Configuring rabbitmq service ..."
+                    salt-run state.orchestrate rabbitmq.orchestrate.cluster 2> /dev/null
+                    echo "Configuring galera service ..."
+                    salt-run state.orchestrate galera.orchestrate 2> /dev/null
+                    echo "Configuring infrastructure services ..."
+                    salt-run state.orchestrate memcached.orchestrate 2> /dev/null
+                    salt-run state.orchestrate haproxy.orchestrate 2> /dev/null
+                    salt 'control*' state.sls keystone
+                    echo "Finishing configuration of control01 node ..."
+                    salt 'control01.openstack-ha.local' state.highstate
+                    salt 'control01.openstack-ha.local' state.highstate
+                    echo "Finishing configuration of control02 node ..."
+                    salt 'control02.openstack-ha.local' state.highstate
+                    salt 'control02.openstack-ha.local' state.highstate
+                    echo "Finishing configuration of control03 node ..."
+                    salt 'control03.openstack-ha.local' state.highstate
+                    salt 'control03.openstack-ha.local' state.highstate
+                    echo "Finishing configuration of compute01 node ..."
+                    salt 'compute01.openstack-ha.local' state.highstate
+                    salt 'compute01.openstack-ha.local' state.highstate
+                    echo "Finishing configuration of compute02 node ..."
+                    salt 'compute02.openstack-ha.local' state.highstate
+                    salt 'compute02.openstack-ha.local' state.highstate
+                    echo "Finishing configuration of proxy node ..."
+                    salt 'proxy.openstack-ha.local' state.highstate
+                    salt 'proxy.openstack-ha.local' state.highstate
+                    echo "Setup complete!"
+                    break
+                fi
+            done
+          params:
+            $node_name: { get_param: cfg01_name }
+            $reclass_address: { get_param: reclass_address }
+            $reclass_branch: { get_param: reclass_branch }
+            $formulas_branch: { get_param: formulas_branch }
+            $config_host: localhost
+  ctl01_port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_resource: private_net }
+      fixed_ips:
+        - ip_address: 10.10.10.201
+      allowed_address_pairs:
+        - ip_address: { get_param: cluster_vip_address }
+      security_groups:
+        - default
+        - { get_resource: security_group }
+  ctl01_instance:
+    type: OS::Nova::Server
+    properties:
+      image: { get_param: instance_image }
+      flavor: { get_param: instance_flavor_controller }
+      key_name: { get_resource: keypair }
+      name: { get_param: ctl01_name }
+      networks:
+      - port: { get_resource: ctl01_port }
+      user_data_format: RAW
+      user_data:
+        str_replace:
+          template: |
+            #!/bin/bash
+            echo "Preparing base OS"
+            which wget >/dev/null || (apt-get update; apt-get install -y wget)
+
+            echo "deb [arch=amd64] http://apt.tcpcloud.eu/nightly/ trusty main security extra tcp" > /etc/apt/sources.list
+            wget -O - http://apt.tcpcloud.eu/public.gpg | apt-key add -
+
+            apt-get clean
+            apt-get update
+            apt-get install -y salt-minion
+
+            echo "id: $node_name" >> /etc/salt/minion
+            echo "master: $config_host" >> /etc/salt/minion
+            rm -f /etc/salt/pki/minion/minion_master.pub
+            service salt-minion restart
+
+            i=1
+            while [ $i -lt 16 ]; do
+                if [[ -z $(salt-call test.ping | grep "True") ]]; then
+                    echo "[ Try: $i/15 ] Waiting for config node to become available ..."
+                    sleep 20
+                else
+                    echo "Config node ready!"
+                    break
+                fi
+            done
+          params:
+            $node_name: { get_param: ctl01_name }
+            $config_host: { get_param: config_host }
+  ctl02_port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_resource: private_net }
+      fixed_ips:
+        - ip_address: 10.10.10.202
+      allowed_address_pairs:
+        - ip_address: { get_param: cluster_vip_address }
+      security_groups:
+        - default
+        - { get_resource: security_group }
+  ctl02_instance:
+    type: OS::Nova::Server
+    properties:
+      image: { get_param: instance_image }
+      flavor: { get_param: instance_flavor_controller }
+      key_name: { get_resource: keypair }
+      name: { get_param: ctl02_name }
+      networks:
+      - port: { get_resource: ctl02_port }
+      user_data_format: RAW
+      user_data:
+        str_replace:
+          template: |
+            #!/bin/bash
+            echo "Preparing base OS"
+            which wget >/dev/null || (apt-get update; apt-get install -y wget)
+
+            echo "deb [arch=amd64] http://apt.tcpcloud.eu/nightly/ trusty main security extra tcp" > /etc/apt/sources.list
+            wget -O - http://apt.tcpcloud.eu/public.gpg | apt-key add -
+
+            apt-get clean
+            apt-get update
+            apt-get install -y salt-minion
+
+            echo "id: $node_name" >> /etc/salt/minion
+            echo "master: $config_host" >> /etc/salt/minion
+            rm -f /etc/salt/pki/minion/minion_master.pub
+            service salt-minion restart
+
+            i=1
+            while [ $i -lt 16 ]; do
+                if [[ -z $(salt-call test.ping | grep "True") ]]; then
+                    echo "[ Try: $i/15 ] Waiting for config node to become available ..."
+                    sleep 20
+                else
+                    echo "Config node ready!"
+                    break
+                fi
+            done
+          params:
+            $node_name: { get_param: ctl02_name }
+            $config_host: { get_param: config_host }
+  ctl03_port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_resource: private_net }
+      fixed_ips:
+        - ip_address: 10.10.10.203
+      allowed_address_pairs:
+        - ip_address: { get_param: cluster_vip_address }
+      security_groups:
+        - default
+        - { get_resource: security_group }
+  ctl03_instance:
+    type: OS::Nova::Server
+    properties:
+      image: { get_param: instance_image }
+      flavor: { get_param: instance_flavor_controller }
+      key_name: { get_resource: keypair }
+      name: { get_param: ctl03_name }
+      networks:
+      - port: { get_resource: ctl03_port }
+      user_data_format: RAW
+      user_data:
+        str_replace:
+          template: |
+            #!/bin/bash
+            echo "Preparing base OS"
+            which wget >/dev/null || (apt-get update; apt-get install -y wget)
+
+            echo "deb [arch=amd64] http://apt.tcpcloud.eu/nightly/ trusty main security extra tcp" > /etc/apt/sources.list
+            wget -O - http://apt.tcpcloud.eu/public.gpg | apt-key add -
+
+            apt-get clean
+            apt-get update
+            apt-get install -y salt-minion
+
+            echo "id: $node_name" >> /etc/salt/minion
+            echo "master: $config_host" >> /etc/salt/minion
+            rm -f /etc/salt/pki/minion/minion_master.pub
+            service salt-minion restart
+
+            i=1
+            while [ $i -lt 16 ]; do
+                if [[ -z $(salt-call test.ping | grep "True") ]]; then
+                    echo "[ Try: $i/15 ] Waiting for config node to become available ..."
+                    sleep 20
+                else
+                    echo "Config node ready!"
+                    break
+                fi
+            done
+          params:
+            $node_name: { get_param: ctl03_name }
+            $config_host: { get_param: config_host }
+  cmp01_port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_resource: private_net }
+      fixed_ips:
+        - ip_address: 10.10.10.211
+      security_groups:
+        - default
+        - { get_resource: security_group }
+  cmp01_instance:
+    type: OS::Nova::Server
+    properties:
+      image: { get_param: instance_image }
+      flavor: { get_param: instance_flavor_compute }
+      key_name: { get_resource: keypair }
+      name: { get_param: cmp01_name }
+      networks:
+      - port: { get_resource: cmp01_port }
+      user_data_format: RAW
+      user_data:
+        str_replace:
+          template: |
+            #!/bin/bash
+            echo "Preparing base OS"
+            which wget >/dev/null || (apt-get update; apt-get install -y wget)
+
+            echo "deb [arch=amd64] http://apt.tcpcloud.eu/nightly/ trusty main security extra tcp" > /etc/apt/sources.list
+            wget -O - http://apt.tcpcloud.eu/public.gpg | apt-key add -
+
+            apt-get clean
+            apt-get update
+            apt-get install -y salt-minion
+
+            echo "id: $node_name" >> /etc/salt/minion
+            echo "master: $config_host" >> /etc/salt/minion
+            rm -f /etc/salt/pki/minion/minion_master.pub
+            service salt-minion restart
+
+            i=1
+            while [ $i -lt 16 ]; do
+                if [[ -z $(salt-call test.ping | grep "True") ]]; then
+                    echo "[ Try: $i/15 ] Waiting for config node to become available ..."
+                    sleep 20
+                else
+                    echo "Config node ready!"
+                    break
+                fi
+            done
+          params:
+            $node_name: { get_param: cmp01_name }
+            $config_host: { get_param: config_host }
+  cmp02_port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_resource: private_net }
+      fixed_ips:
+        - ip_address: 10.10.10.212
+      security_groups:
+        - default
+        - { get_resource: security_group }
+  cmp02_instance:
+    type: OS::Nova::Server
+    properties:
+      image: { get_param: instance_image }
+      flavor: { get_param: instance_flavor_compute }
+      key_name: { get_resource: keypair }
+      name: { get_param: cmp02_name }
+      networks:
+      - port: { get_resource: cmp02_port }
+      user_data_format: RAW
+      user_data:
+        str_replace:
+          template: |
+            #!/bin/bash
+            echo "Preparing base OS"
+            which wget >/dev/null || (apt-get update; apt-get install -y wget)
+
+            echo "deb [arch=amd64] http://apt.tcpcloud.eu/nightly/ trusty main security extra tcp" > /etc/apt/sources.list
+            wget -O - http://apt.tcpcloud.eu/public.gpg | apt-key add -
+
+            apt-get clean
+            apt-get update
+            apt-get install -y salt-minion
+
+            echo "id: $node_name" >> /etc/salt/minion
+            echo "master: $config_host" >> /etc/salt/minion
+            rm -f /etc/salt/pki/minion/minion_master.pub
+            service salt-minion restart
+
+            i=1
+            while [ $i -lt 16 ]; do
+                if [[ -z $(salt-call test.ping | grep "True") ]]; then
+                    echo "[ Try: $i/15 ] Waiting for config node to become available ..."
+                    sleep 20
+                else
+                    echo "Config node ready!"
+                    break
+                fi
+            done
+          params:
+            $node_name: { get_param: cmp02_name }
+            $config_host: { get_param: config_host }
+  prx01_floating_ip:
+    type: OS::Nova::FloatingIP
+    properties:
+      pool: { get_param: public_net_id }
+  prx01_floating_ip_association:
+    type: OS::Nova::FloatingIPAssociation
+    properties:
+      floating_ip: { get_resource: prx01_floating_ip }
+      server_id: { get_resource: prx01_instance }
+  prx01_port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_resource: private_net }
+      fixed_ips:
+        - ip_address: 10.10.10.204
+      security_groups:
+        - default
+        - { get_resource: security_group }
+  prx01_instance:
+    type: OS::Nova::Server
+    properties:
+      image: { get_param: instance_image }
+      flavor: { get_param: instance_flavor_support }
+      key_name: { get_resource: keypair }
+      name: { get_param: prx01_name }
+      networks:
+      - port: { get_resource: prx01_port }
+      user_data_format: RAW
+      user_data:
+        str_replace:
+          template: |
+            #!/bin/bash
+            echo "Preparing base OS"
+            which wget >/dev/null || (apt-get update; apt-get install -y wget)
+
+            echo "deb [arch=amd64] http://apt.tcpcloud.eu/nightly/ trusty main security extra tcp" > /etc/apt/sources.list
+            wget -O - http://apt.tcpcloud.eu/public.gpg | apt-key add -
+
+            apt-get clean
+            apt-get update
+            apt-get install -y salt-minion
+
+            echo "id: $node_name" >> /etc/salt/minion
+            echo "master: $config_host" >> /etc/salt/minion
+            rm -f /etc/salt/pki/minion/minion_master.pub
+            service salt-minion restart
+
+            i=1
+            while [ $i -lt 16 ]; do
+                if [[ -z $(salt-call test.ping | grep "True") ]]; then
+                    echo "[ Try: $i/15 ] Waiting for config node to become available ..."
+                    sleep 20
+                else
+                    echo "Config node ready!"
+                    break
+                fi
+            done
+          params:
+            $node_name: { get_param: prx01_name }
+            $config_host: { get_param: config_host }
+
