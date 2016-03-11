@@ -20,7 +20,7 @@ parameters:
     default: 10.10.10.200
   cfg01_name:
     type: string
-    default: config.openstack-ha.local
+    default: config.rdo-ha.local
   ctl01_name:
     type: string
     default: control01.openstack-ha.local
