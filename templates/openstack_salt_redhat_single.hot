@@ -303,14 +303,14 @@ resources:
           template: |
             #!/bin/bash
             echo "Preparing base OS"
-            which wget >/dev/null || (apt-get update; apt-get install -y wget)
 
-            echo "deb [arch=amd64] http://apt.tcpcloud.eu/nightly/ trusty main security extra tcp" > /etc/apt/sources.list
-            wget -O - http://apt.tcpcloud.eu/public.gpg | apt-key add -
+            source /etc/os-release
+            rpm --import https://repo.saltstack.com/yum/redhat/$VERSION_ID/x86_64/latest/SALTSTACK-GPG-KEY.pub
+            echo -e "[saltstack-repo]\nname=SaltStack repo for RHEL/CentOS $VERSION_ID\nbaseurl=https://repo.saltstack.com/yum/redhat/$VERSION_ID/$(arch)/latest\nenabled=1\ngpgcheck=1\ngpgkey=https://repo.saltstack.com/yum/redhat/$VERSION_ID/$(arch)/latest/SALTSTACK-GPG-KEY.pub" > /etc/yum.repos.d/saltstack.repo
 
-            apt-get clean
-            apt-get update
-            apt-get install -y salt-minion
+            yum clean expire-cache
+            yum update -y
+            yum install salt-minion -y
 
             echo "id: $node_name" >> /etc/salt/minion
             echo "master: $config_host" >> /etc/salt/minion
@@ -354,14 +354,14 @@ resources:
           template: |
             #!/bin/bash
             echo "Preparing base OS"
-            which wget >/dev/null || (apt-get update; apt-get install -y wget)
 
-            echo "deb [arch=amd64] http://apt.tcpcloud.eu/nightly/ trusty main security extra tcp" > /etc/apt/sources.list
-            wget -O - http://apt.tcpcloud.eu/public.gpg | apt-key add -
+            source /etc/os-release
+            rpm --import https://repo.saltstack.com/yum/redhat/$VERSION_ID/x86_64/latest/SALTSTACK-GPG-KEY.pub
+            echo -e "[saltstack-repo]\nname=SaltStack repo for RHEL/CentOS $VERSION_ID\nbaseurl=https://repo.saltstack.com/yum/redhat/$VERSION_ID/$(arch)/latest\nenabled=1\ngpgcheck=1\ngpgkey=https://repo.saltstack.com/yum/redhat/$VERSION_ID/$(arch)/latest/SALTSTACK-GPG-KEY.pub" > /etc/yum.repos.d/saltstack.repo
 
-            apt-get clean
-            apt-get update
-            apt-get install -y salt-minion
+            yum clean expire-cache
+            yum update -y
+            yum install salt-minion -y
 
             echo "id: $node_name" >> /etc/salt/minion
             echo "master: $config_host" >> /etc/salt/minion
@@ -414,14 +414,14 @@ resources:
           template: |
             #!/bin/bash
             echo "Preparing base OS"
-            which wget >/dev/null || (apt-get update; apt-get install -y wget)
 
-            echo "deb [arch=amd64] http://apt.tcpcloud.eu/nightly/ trusty main security extra tcp" > /etc/apt/sources.list
-            wget -O - http://apt.tcpcloud.eu/public.gpg | apt-key add -
+            source /etc/os-release
+            rpm --import https://repo.saltstack.com/yum/redhat/$VERSION_ID/x86_64/latest/SALTSTACK-GPG-KEY.pub
+            echo -e "[saltstack-repo]\nname=SaltStack repo for RHEL/CentOS $VERSION_ID\nbaseurl=https://repo.saltstack.com/yum/redhat/$VERSION_ID/$(arch)/latest\nenabled=1\ngpgcheck=1\ngpgkey=https://repo.saltstack.com/yum/redhat/$VERSION_ID/$(arch)/latest/SALTSTACK-GPG-KEY.pub" > /etc/yum.repos.d/saltstack.repo
 
-            apt-get clean
-            apt-get update
-            apt-get install -y salt-minion
+            yum clean expire-cache
+            yum update -y
+            yum install salt-minion -y
 
             echo "id: $node_name" >> /etc/salt/minion
             echo "master: $config_host" >> /etc/salt/minion
