@@ -3,7 +3,7 @@ description: Open vStorage cluster
 parameters:
   config_host:
     type: string
-    default: 172.10.10.100
+    default: 172.16.10.100
   key_name:
     type: string
   ovscmp01_name:
@@ -43,7 +43,7 @@ resources:
     properties:
       network_id: { get_param: private_net_id }
       fixed_ips:
-        - ip_address: 172.10.10.109
+        - ip_address: 172.16.10.109
       security_groups:
         - default
         - workshop
@@ -96,7 +96,7 @@ resources:
     properties:
       network_id: { get_param: private_net_id }
       fixed_ips:
-        - ip_address: 172.10.10.110
+        - ip_address: 172.16.10.110
       security_groups:
         - default
         - workshop
@@ -149,7 +149,7 @@ resources:
     properties:
       network_id: { get_param: private_net_id }
       fixed_ips:
-        - ip_address: 172.10.10.111
+        - ip_address: 172.16.10.111
       security_groups:
         - default
         - workshop
@@ -202,7 +202,7 @@ resources:
     properties:
       network_id: { get_param: private_net_id }
       fixed_ips:
-        - ip_address: 172.10.10.112
+        - ip_address: 172.16.10.112
       security_groups:
         - default
         - workshop
