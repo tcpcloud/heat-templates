@@ -3,7 +3,7 @@ description: OpenStack cluster with OpenContrail
 parameters:
   config_host:
     type: string
-    default: 172.10.10.100
+    default: 172.16.10.100
   key_name:
     type: string
   ctl01_name:
@@ -32,7 +32,7 @@ parameters:
     default: mtr01.workshop.cloudlab.cz
   cluster_vip_address:
     type: string
-    default: 172.10.10.254
+    default: 172.16.10.254
   public_net_id:
     type: string
   private_net_id:
@@ -42,7 +42,7 @@ parameters:
   instance_flavor_controller:
     type: string
     description: Instance type for controllers
-    default: m1.large
+    default: m1.xlarge
     constraints:
       - allowed_values: [m1.tiny, m1.small, m1.medium, m1.large, m1.xlarge]
         description: instance_type must be a valid instance type
@@ -72,7 +72,7 @@ resources:
     properties:
       network_id: { get_param: private_net_id }
       fixed_ips:
-        - ip_address: 172.10.10.101
+        - ip_address: 172.16.10.101
       allowed_address_pairs:
         - ip_address: { get_param: cluster_vip_address }
       security_groups:
@@ -119,7 +119,7 @@ resources:
     properties:
       network_id: { get_param: private_net_id }
       fixed_ips:
-        - ip_address: 172.10.10.102
+        - ip_address: 172.16.10.102
       allowed_address_pairs:
         - ip_address: { get_param: cluster_vip_address }
       security_groups:
@@ -166,7 +166,7 @@ resources:
     properties:
       network_id: { get_param: private_net_id }
       fixed_ips:
-        - ip_address: 172.10.10.103
+        - ip_address: 172.16.10.103
       allowed_address_pairs:
         - ip_address: { get_param: cluster_vip_address }
       security_groups:
@@ -214,7 +214,7 @@ resources:
     properties:
       network_id: { get_param: private_net_id }
       fixed_ips:
-        - ip_address: 172.10.10.105
+        - ip_address: 172.16.10.105
       security_groups:
         - default
         - workshop
@@ -260,7 +260,7 @@ resources:
     properties:
       network_id: { get_param: private_net_id }
       fixed_ips:
-        - ip_address: 172.10.10.106
+        - ip_address: 172.16.10.106
       security_groups:
         - default
         - workshop
@@ -314,7 +314,7 @@ resources:
     properties:
       network_id: { get_param: private_net_id }
       fixed_ips:
-        - ip_address: 172.10.10.104
+        - ip_address: 172.16.10.104
       security_groups:
         - default
         - workshop
@@ -359,7 +359,7 @@ resources:
     properties:
       network_id: { get_param: private_net_id }
       fixed_ips:
-        - ip_address: 172.10.10.107
+        - ip_address: 172.16.10.107
       security_groups:
         - default
         - workshop
@@ -404,7 +404,7 @@ resources:
     properties:
       network_id: { get_param: private_net_id }
       fixed_ips:
-        - ip_address: 172.10.10.108
+        - ip_address: 172.16.10.108
       security_groups:
         - default
         - workshop

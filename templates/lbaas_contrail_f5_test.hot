@@ -52,19 +52,19 @@ parameters:
   private_net_cidr:
     type: string
     description: Private network address (CIDR notation)
-    default: 172.10.10.0/24
+    default: 172.16.10.0/24
   private_net_gw:
     type: string
     description: Private network gateway
-    default: 172.10.10.1
+    default: 172.16.10.1
   private_net_pool_start:
     type: string
     description: Start of private network IP address allocation pool
-    default: 172.10.10.100
+    default: 172.16.10.100
   private_net_pool_end:
     type: string
     description: End of private network IP address allocation pool
-    default: 172.10.10.200
+    default: 172.16.10.200
 resources:
   http_security_group:
     type: OS::Neutron::SecurityGroup
