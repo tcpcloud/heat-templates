@@ -42,7 +42,7 @@ parameters:
   instance_flavor_controller:
     type: string
     description: Instance type for controllers
-    default: m1.large
+    default: m1.xlarge
     constraints:
       - allowed_values: [m1.tiny, m1.small, m1.medium, m1.large, m1.xlarge]
         description: instance_type must be a valid instance type
