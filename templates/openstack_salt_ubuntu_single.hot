@@ -152,7 +152,7 @@ resources:
             echo "Preparing base OS"
             which wget >/dev/null || (apt-get update; apt-get install -y wget)
 
-            echo "deb [arch=amd64] http://apt.tcpcloud.eu/nightly/ trusty main security extra tcp tcp-salt" > /etc/apt/sources.list
+            echo "deb [arch=amd64] http://apt.tcpcloud.eu/testing/ trusty main security extra tcp tcp-salt" > /etc/apt/sources.list
             wget -O - http://apt.tcpcloud.eu/public.gpg | apt-key add -
 
             apt-get clean
@@ -220,48 +220,49 @@ resources:
             salt-call --no-color state.highstate
 
             i=1
-            while [ $i -lt 16 ]; do 
-                if [[ -n $(salt 'control.openstack.local' test.ping | grep "control.openstack.local") ]]; then 
+            while [ $i -lt 31 ]; do 
+                if salt 'control.openstack.local' test.ping | grep "True" > /dev/null 2>&1; then 
                     echo "Configuring control node ..."
                     # Basic configuration
                     salt 'control.openstack.local' --no-color state.sls linux,openssh,salt
-                    sleep 10
+                    sleep 30
                     # Infrastructure services deployment
                     salt 'control.openstack.local' --no-color state.sls mysql,rabbitmq
                     # OpenStack and OpenContrail deployment
                     salt 'control.openstack.local' --no-color state.highstate
                     break
                 else 
-                    echo "[ Try: $i/15 ] Waiting for control node to become available ..."
+                    echo "[ Try: $i/30 ] Waiting for control node to become available ..."
                     (( i++ )) 
                     sleep 20
                 fi
             done 
 
             i=1
-            while [ $i -lt 16 ]; do
-                if [[ -n $(salt 'compute.openstack.local' test.ping | grep "compute.openstack.local") ]]; then
+            while [ $i -lt 31 ]; do
+                if salt 'compute.openstack.local' test.ping | grep "True" > /dev/null 2>&1; then
                     echo "Configuring compute node ..."
                     salt 'compute.openstack.local' --no-color state.sls linux,openssh,salt
-                    sleep 10
+                    sleep 30
                     salt 'compute.openstack.local' --no-color state.highstate 
                     break
                 else 
-                    echo "[ Try: $i/15 ] Waiting for compute node to become available ..."
+                    echo "[ Try: $i/30 ] Waiting for compute node to become available ..."
                     (( i++ )) 
                     sleep 20
                 fi  
             done 
 
-            while [ $i -lt 16 ]; do
-                if [[ -n $(salt 'proxy.openstack.local' test.ping | grep "proxy.openstack.local") ]]; then
+            i=1
+            while [ $i -lt 31 ]; do
+                if salt 'proxy.openstack.local' test.ping | grep "True" > /dev/null 2>&1; then
                     echo "Configuring proxy node ..."
                     salt 'proxy.openstack.local' --no-color state.sls linux,openssh,salt
-                    sleep 10
-                    #salt 'proxy.openstack.local' --no-color state.highstate 
+                    sleep 30
+                    salt 'proxy.openstack.local' --no-color state.highstate 
                     break 
                 else 
-                    echo "[ Try: $i/15 ] Waiting for proxy node to become available ..."
+                    echo "[ Try: $i/30 ] Waiting for proxy node to become available ..."
                     (( i++ )) 
                     sleep 20
                 fi  
@@ -301,7 +302,7 @@ resources:
             echo "Preparing base OS"
             which wget >/dev/null || (apt-get update; apt-get install -y wget)
 
-            echo "deb [arch=amd64] http://apt.tcpcloud.eu/nightly/ trusty main security extra tcp" > /etc/apt/sources.list
+            echo "deb [arch=amd64] http://apt.tcpcloud.eu/testing/ trusty main security extra tcp" > /etc/apt/sources.list
             wget -O - http://apt.tcpcloud.eu/public.gpg | apt-key add -
 
             apt-get clean
@@ -314,9 +315,9 @@ resources:
             service salt-minion restart
 
             i=1
-            while [ $i -lt 16 ]; do
-                if [[ -z $(salt-call test.ping | grep "True") ]]; then
-                    echo "[ Try: $i/15 ] Waiting for config node to become available ..."
+            while [ $i -lt 31 ]; do
+                if salt-call test.ping | grep "True" > /dev/null 2>&1; then
+                    echo "[ Try: $i/30 ] Waiting for config node to become available ..."
                     sleep 20
                 else
                     echo "Config node ready!"
@@ -352,7 +353,7 @@ resources:
             echo "Preparing base OS"
             which wget >/dev/null || (apt-get update; apt-get install -y wget)
 
-            echo "deb [arch=amd64] http://apt.tcpcloud.eu/nightly/ trusty main security extra tcp" > /etc/apt/sources.list
+            echo "deb [arch=amd64] http://apt.tcpcloud.eu/testing/ trusty main security extra tcp" > /etc/apt/sources.list
             wget -O - http://apt.tcpcloud.eu/public.gpg | apt-key add -
 
             apt-get clean
@@ -365,9 +366,9 @@ resources:
             service salt-minion restart
 
             i=1
-            while [ $i -lt 16 ]; do
-                if [[ -z $(salt-call test.ping | grep "True") ]]; then
-                    echo "[ Try: $i/15 ] Waiting for config node to become available ..."
+            while [ $i -lt 31 ]; do
+                if salt-call test.ping | grep "True" > /dev/null 2>&1; then
+                    echo "[ Try: $i/30 ] Waiting for config node to become available ..."
                     sleep 20
                 else
                     echo "Config node ready!"
@@ -412,7 +413,7 @@ resources:
             echo "Preparing base OS"
             which wget >/dev/null || (apt-get update; apt-get install -y wget)
 
-            echo "deb [arch=amd64] http://apt.tcpcloud.eu/nightly/ trusty main security extra tcp" > /etc/apt/sources.list
+            echo "deb [arch=amd64] http://apt.tcpcloud.eu/testing/ trusty main security extra tcp" > /etc/apt/sources.list
             wget -O - http://apt.tcpcloud.eu/public.gpg | apt-key add -
 
             apt-get clean
@@ -425,9 +426,9 @@ resources:
             service salt-minion restart
 
             i=1
-            while [ $i -lt 16 ]; do
+            while [ $i -lt 31 ]; do
                 if [[ -z $(salt-call test.ping | grep "True") ]]; then
-                    echo "[ Try: $i/15 ] Waiting for config node to become available ..."
+                    echo "[ Try: $i/30 ] Waiting for config node to become available ..."
                     sleep 20
                 else
                     echo "Config node ready!"
