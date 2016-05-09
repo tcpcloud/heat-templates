@@ -1,0 +1,504 @@
+heat_template_version: 2013-05-23
+description: Base Heat stack with simple OS setup
+parameters:
+  key_name:
+    type: string
+    default: openstack_salt_ubuntu_single
+  key_value:
+    type: string
+  salt_version:
+    type: string
+    default: latest
+  reclass_address:
+    type: string
+    default: https://github.com/tcpcloud/workshop-salt-model.git
+  reclass_branch:
+    type: string
+    default: master
+  formulas_branch:
+    type: string
+    default: master
+  config_host:
+    type: string
+    default: 10.10.10.200
+  cfg01_name:
+    type: string
+    default: config.openstack.local
+  ctl01_name:
+    type: string
+    default: control.openstack.local
+  cmp01_name:
+    type: string
+    default: compute.openstack.local
+  prx01_name:
+    type: string
+    default: proxy.openstack.local
+  cluster_vip_address:
+    type: string
+    default: 10.10.10.254
+  instance_flavor:
+    type: string
+    description: Instance type for servers
+    default: m1.small
+    constraints:
+      - allowed_values: [m1.tiny, m1.small, m1.medium, m1.large]
+        description: instance_type must be a valid instance type
+  instance_image:
+    type: string
+    description: Image name to use for the servers.
+    default: ubuntu-14-04-x64-1452267252
+  public_net_id:
+    type: string
+    description: ID or name of public network for which floating IP addresses will be allocated
+  router_name:
+    type: string
+    description: Name of router to be created
+    default: openstack-salt-router
+  private_net_name:
+    type: string
+    description: Name of private network to be created
+    default: openstack-salt-net
+  private_net_cidr:
+    type: string
+    description: Private network address (CIDR notation)
+    default: 10.10.10.0/24
+  instance_flavor_controller:
+    type: string
+    description: Instance type for controllers
+    default: m1.large
+    constraints:
+      - allowed_values: [m1.tiny, m1.small, m1.medium, m1.large]
+        description: instance_type must be a valid instance type
+  instance_flavor_compute:
+    type: string
+    description: Instance type for compute nodes
+    default: m1.medium
+    constraints:
+      - allowed_values: [m1.tiny, m1.small, m1.medium, m1.large]
+        description: instance_type must be a valid instance type
+  instance_flavor_support:
+    type: string
+    description: Instance type for support nodes (web, monitoring, etc.)
+    default: m1.small
+    constraints:
+      - allowed_values: [m1.tiny, m1.small, m1.medium, m1.large]
+        description: instance_type must be a valid instance type
+resources:
+  keypair:
+    type: OS::Nova::KeyPair
+    properties:
+      name: { get_param: key_name }
+      public_key: { get_param: key_value }
+      save_private_key: false
+  private_net:
+    type: OS::Neutron::Net
+    properties:
+      name: { get_param: private_net_name }
+  private_subnet:
+    type: OS::Neutron::Subnet
+    properties:
+      name: { get_param: private_net_name }
+      network_id: { get_resource: private_net }
+      cidr: { get_param: private_net_cidr }
+  router:
+    type: OS::Neutron::Router
+    properties:
+      name: { get_param: router_name }
+      external_gateway_info:
+        network: { get_param: public_net_id }
+  router_interface:
+    type: OS::Neutron::RouterInterface
+    properties:
+      router_id: { get_resource: router }
+      subnet_id: { get_resource: private_subnet }
+  security_group:
+    type: OS::Neutron::SecurityGroup
+    properties:
+      name: { get_param: router_name }
+      rules:
+        - protocol: tcp
+          remote_ip_prefix: 0.0.0.0/0
+        - protocol: icmp
+          remote_ip_prefix: 0.0.0.0/0
+  cfg01_floating_ip:
+    type: OS::Nova::FloatingIP
+    properties:
+      pool: { get_param: public_net_id }
+  cfg01_floating_ip_association:
+    type: OS::Nova::FloatingIPAssociation
+    properties:
+      floating_ip: { get_resource: cfg01_floating_ip }
+      server_id: { get_resource: cfg01_instance }
+  cfg01_port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_resource: private_net }
+      fixed_ips:
+        - ip_address: 10.10.10.200
+      security_groups:
+        - default
+        - { get_resource: security_group }
+  cfg01_instance:
+    type: OS::Nova::Server
+    properties:
+      image: { get_param: instance_image }
+      flavor: { get_param: instance_flavor }
+      key_name: { get_resource: keypair }
+      name: { get_param: cfg01_name }
+      networks:
+      - port: { get_resource: cfg01_port }
+      user_data_format: RAW
+      user_data:
+        str_replace:
+          template: |
+            #!/bin/bash
+            echo "Preparing base OS"
+            which wget >/dev/null || (apt-get update; apt-get install -y wget)
+
+            echo "deb [arch=amd64] http://apt.tcpcloud.eu/testing/ trusty main security extra tcp tcp-salt" > /etc/apt/sources.list
+            wget -O - http://apt.tcpcloud.eu/public.gpg | apt-key add -
+
+            apt-get clean
+            apt-get update
+
+            echo "Configuring salt master ..."
+            apt-get install -y python-pip python-dev zlib1g-dev reclass
+            if [[ $salt_version -eq "latest" ]]; then
+              pip install salt
+            else
+              pip install salt==$salt_version
+            fi
+            wget -O /etc/init.d/salt-master https://anonscm.debian.org/cgit/pkg-salt/salt.git/plain/debian/salt-master.init && chmod 755 /etc/init.d/salt-master
+            ln -s /usr/local/bin/salt-master /usr/bin/salt-master
+            [ ! -d /etc/salt/master.d ] && mkdir -p /etc/salt/master.d
+
+            echo "Getting salt formulas ..."
+            [ ! -d /usr/share/salt-formulas/env/_formulas ] && mkdir -p /usr/share/salt-formulas/env/_formulas
+            ssh-keyscan -H -t ecdsa github.com >> /root/.ssh/known_hosts
+            git clone git@github.com:tcpcloud/salt-formula-linux.git /usr/share/salt-formulas/env/_formulas/linux -b $formulas_branch
+            git clone git@github.com:tcpcloud/salt-formula-reclass.git /usr/share/salt-formulas/env/_formulas/reclass -b $formulas_branch
+            git clone git@github.com:tcpcloud/salt-formula-salt.git /usr/share/salt-formulas/env/_formulas/salt -b $formulas_branch
+            git clone git@github.com:tcpcloud/salt-formula-openssh.git /usr/share/salt-formulas/env/_formulas/openssh -b $formulas_branch
+            git clone git@github.com:tcpcloud/salt-formula-git.git /usr/share/salt-formulas/env/_formulas/git -b $formulas_branch
+            git clone git@github.com:tcpcloud/salt-formula-ntp.git /usr/share/salt-formulas/env/_formulas/ntp -b $formulas_branch
+            git clone git@github.com:tcpcloud/salt-formula-graphite.git /usr/share/salt-formulas/env/_formulas/graphite -b $formulas_branch
+            git clone git@github.com:tcpcloud/salt-formula-collectd.git /usr/share/salt-formulas/env/_formulas/collectd -b $formulas_branch
+            git clone git@github.com:tcpcloud/salt-formula-sensu.git /usr/share/salt-formulas/env/_formulas/sensu -b $formulas_branch
+            git clone git@github.com:tcpcloud/salt-formula-heka.git /usr/share/salt-formulas/env/_formulas/heka -b $formulas_branch
+            git clone $reclass_address /srv/salt/reclass -b $reclass_branch
+
+            echo "Configuring formula definitions ..."
+            ln -s /usr/share/salt-formulas/env/_formulas/linux/linux /usr/share/salt-formulas/env/linux
+            ln -s /usr/share/salt-formulas/env/_formulas/reclass/reclass /usr/share/salt-formulas/env/reclass
+            ln -s /usr/share/salt-formulas/env/_formulas/salt/salt /usr/share/salt-formulas/env/salt
+            ln -s /usr/share/salt-formulas/env/_formulas/openssh/openssh /usr/share/salt-formulas/env/openssh
+            ln -s /usr/share/salt-formulas/env/_formulas/git/git /usr/share/salt-formulas/env/git
+            ln -s /usr/share/salt-formulas/env/_formulas/ntp/ntp /usr/share/salt-formulas/env/ntp
+            ln -s /usr/share/salt-formulas/env/_formulas/graphite/graphite /usr/share/salt-formulas/env/graphite
+            ln -s /usr/share/salt-formulas/env/_formulas/collectd/collectd /usr/share/salt-formulas/env/collectd
+            ln -s /usr/share/salt-formulas/env/_formulas/sensu/sensu /usr/share/salt-formulas/env/sensu
+            ln -s /usr/share/salt-formulas/env/_formulas/heka/heka /usr/share/salt-formulas/env/heka
+
+            echo "Configuring reclass metadata ..."
+            mkdir -p /srv/salt/reclass/classes/service
+            ln -s /usr/share/salt-formulas/env/_formulas/linux/metadata/service /srv/salt/reclass/classes/service/linux
+            ln -s /usr/share/salt-formulas/env/_formulas/reclass/metadata/service /srv/salt/reclass/classes/service/reclass
+            ln -s /usr/share/salt-formulas/env/_formulas/salt/metadata/service /srv/salt/reclass/classes/service/salt
+            ln -s /usr/share/salt-formulas/env/_formulas/openssh/metadata/service /srv/salt/reclass/classes/service/openssh
+            ln -s /usr/share/salt-formulas/env/_formulas/git/metadata/service /srv/salt/reclass/classes/service/git
+            ln -s /usr/share/salt-formulas/env/_formulas/ntp/metadata/service /srv/salt/reclass/classes/service/ntp
+            ln -s /usr/share/salt-formulas/env/_formulas/graphite/metadata/service /srv/salt/reclass/classes/service/graphite
+            ln -s /usr/share/salt-formulas/env/_formulas/collectd/metadata/service /srv/salt/reclass/classes/service/collectd
+            ln -s /usr/share/salt-formulas/env/_formulas/sensu/metadata/service /srv/salt/reclass/classes/service/sensu
+            ln -s /usr/share/salt-formulas/env/_formulas/heka/metadata/service /srv/salt/reclass/classes/service/heka
+
+            # Temporary until multi-site horizon is deployed on salt master
+            git clone git@github.com:tcpcloud/salt-formula-nginx.git /usr/share/salt-formulas/env/_formulas/nginx -b $formulas_branch
+            git clone git@github.com:openstack/salt-formula-horizon.git /usr/share/salt-formulas/env/_formulas/horizon -b $formulas_branch
+            git clone git@github.com:tcpcloud/salt-formula-memcached.git /usr/share/salt-formulas/env/_formulas/memcached -b $formulas_branch
+            git clone git@github.com:tcpcloud/salt-formula-python.git /usr/share/salt-formulas/env/_formulas/python -b $formulas_branch
+            git clone git@github.com:tcpcloud/salt-formula-supervisor.git /usr/share/salt-formulas/env/_formulas/supervisor -b $formulas_branch
+
+            ln -s /usr/share/salt-formulas/env/_formulas/nginx/nginx /usr/share/salt-formulas/env/nginx
+            ln -s /usr/share/salt-formulas/env/_formulas/horizon/horizon /usr/share/salt-formulas/env/horizon
+            ln -s /usr/share/salt-formulas/env/_formulas/memcached/memcached /usr/share/salt-formulas/env/memcached
+            ln -s /usr/share/salt-formulas/env/_formulas/python/python /usr/share/salt-formulas/env/python
+            ln -s /usr/share/salt-formulas/env/_formulas/supervisor/supervisor /usr/share/salt-formulas/env/supervisor
+
+            ln -s /usr/share/salt-formulas/env/_formulas/nginx/metadata/service /srv/salt/reclass/classes/service/nginx
+            ln -s /usr/share/salt-formulas/env/_formulas/horizon/metadata/service /srv/salt/reclass/classes/service/horizon
+            ln -s /usr/share/salt-formulas/env/_formulas/memcached/metadata/service /srv/salt/reclass/classes/service/memcached
+            ln -s /usr/share/salt-formulas/env/_formulas/memcached/metadata/service /srv/salt/reclass/classes/service/memcached
+            ln -s /usr/share/salt-formulas/env/_formulas/python/metadata/service /srv/salt/reclass/classes/service/python
+            ln -s /usr/share/salt-formulas/env/_formulas/supervisor/metadata/service /srv/salt/reclass/classes/service/supervisor
+
+            [ ! -d /srv/salt/env ] && mkdir -p /srv/salt/env
+            ln -s /usr/share/salt-formulas/env /srv/salt/env/dev
+
+            cat << 'EOF' >> /etc/salt/master.d/master.conf
+            file_roots:
+              base:
+              - /usr/share/salt-formulas/env
+            pillar_opts: False
+            open_mode: True
+            reclass: &reclass
+              storage_type: yaml_fs
+              inventory_base_uri: /srv/salt/reclass
+            ext_pillar:
+              - reclass: *reclass
+            master_tops:
+              reclass: *reclass
+            EOF
+
+            [ ! -d /etc/reclass ] && mkdir /etc/reclass
+            cat << 'EOF' >> /etc/reclass/reclass-config.yml
+            storage_type: yaml_fs
+            pretty_print: True
+            output: yaml
+            inventory_base_uri: /srv/salt/reclass
+            EOF
+
+            echo "Configuring salt minion ..."
+            apt-get install -y salt-minion
+            [ ! -d /etc/salt/minion.d ] && mkdir -p /etc/salt/minion.d
+            cat << "EOF" >> /etc/salt/minion.d/minion.conf
+            id: $node_name
+            master: localhost
+            EOF
+
+            echo "Restarting services ..."
+            service salt-master restart
+            rm -f /etc/salt/pki/minion/minion_master.pub
+            service salt-minion restart
+
+            echo "Showing system info and metadata ..."
+            salt-call --no-color grains.items
+            salt-call --no-color pillar.data
+            reclass -n $node_name
+
+            echo "Running complete state ..."
+            salt-call --no-color state.sls linux,openssh,salt.minion
+            salt-call --no-color state.sls salt.master
+            service salt-minion restart
+            salt-call --no-color state.highstate
+
+            i=1
+            while [ $i -lt 31 ]; do 
+                if salt 'control.openstack.local' test.ping | grep "True" > /dev/null 2>&1; then 
+                    echo "Configuring control node ..."
+                    # Basic configuration
+                    salt 'control.openstack.local' --no-color state.sls linux,openssh,salt
+                    sleep 30
+                    # Infrastructure services deployment
+                    salt 'control.openstack.local' --no-color state.sls mysql,rabbitmq
+                    # OpenStack and OpenContrail deployment
+                    salt 'control.openstack.local' --no-color state.highstate
+                    break
+                else 
+                    echo "[ Try: $i/30 ] Waiting for control node to become available ..."
+                    (( i++ )) 
+                    sleep 20
+                fi
+            done 
+
+            i=1
+            while [ $i -lt 31 ]; do
+                if salt 'compute.openstack.local' test.ping | grep "True" > /dev/null 2>&1; then
+                    echo "Configuring compute node ..."
+                    salt 'compute.openstack.local' --no-color state.sls linux,openssh,salt
+                    sleep 30
+                    salt 'compute.openstack.local' --no-color state.highstate 
+                    break
+                else 
+                    echo "[ Try: $i/30 ] Waiting for compute node to become available ..."
+                    (( i++ )) 
+                    sleep 20
+                fi  
+            done 
+
+            i=1
+            while [ $i -lt 31 ]; do
+                if salt 'proxy.openstack.local' test.ping | grep "True" > /dev/null 2>&1; then
+                    echo "Configuring proxy node ..."
+                    salt 'proxy.openstack.local' --no-color state.sls linux,openssh,salt
+                    sleep 30
+                    salt 'proxy.openstack.local' --no-color state.highstate 
+                    break 
+                else 
+                    echo "[ Try: $i/30 ] Waiting for proxy node to become available ..."
+                    (( i++ )) 
+                    sleep 20
+                fi  
+            done 
+
+          params:
+            $node_name: { get_param: cfg01_name }
+            $reclass_address: { get_param: reclass_address }
+            $reclass_branch: { get_param: reclass_branch }
+            $formulas_branch: { get_param: formulas_branch }
+            $config_host: localhost
+  ctl01_port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_resource: private_net }
+      fixed_ips:
+        - ip_address: 10.10.10.201
+      allowed_address_pairs:
+        - ip_address: { get_param: cluster_vip_address }
+      security_groups:
+        - default
+        - { get_resource: security_group }
+  ctl01_instance:
+    type: OS::Nova::Server
+    properties:
+      image: { get_param: instance_image }
+      flavor: { get_param: instance_flavor_controller }
+      key_name: { get_resource: keypair }
+      name: { get_param: ctl01_name }
+      networks:
+      - port: { get_resource: ctl01_port }
+      user_data_format: RAW
+      user_data:
+        str_replace:
+          template: |
+            #!/bin/bash
+            echo "Preparing base OS"
+            which wget >/dev/null || (apt-get update; apt-get install -y wget)
+
+            echo "deb [arch=amd64] http://apt.tcpcloud.eu/testing/ trusty main security extra tcp" > /etc/apt/sources.list
+            wget -O - http://apt.tcpcloud.eu/public.gpg | apt-key add -
+
+            apt-get clean
+            apt-get update
+            apt-get install -y salt-minion
+
+            echo "id: $node_name" >> /etc/salt/minion
+            echo "master: $config_host" >> /etc/salt/minion
+            rm -f /etc/salt/pki/minion/minion_master.pub
+            service salt-minion restart
+
+            i=1
+            while [ $i -lt 31 ]; do
+                if salt-call test.ping | grep "True" > /dev/null 2>&1; then
+                    echo "[ Try: $i/30 ] Waiting for config node to become available ..."
+                    sleep 20
+                else
+                    echo "Config node ready!"
+                    break
+                fi
+            done
+          params:
+            $node_name: { get_param: ctl01_name }
+            $config_host: { get_param: config_host }
+  cmp01_port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_resource: private_net }
+      fixed_ips:
+        - ip_address: 10.10.10.202
+      security_groups:
+        - default
+        - { get_resource: security_group }
+  cmp01_instance:
+    type: OS::Nova::Server
+    properties:
+      image: { get_param: instance_image }
+      flavor: { get_param: instance_flavor_compute }
+      key_name: { get_resource: keypair }
+      name: { get_param: cmp01_name }
+      networks:
+      - port: { get_resource: cmp01_port }
+      user_data_format: RAW
+      user_data:
+        str_replace:
+          template: |
+            #!/bin/bash
+            echo "Preparing base OS"
+            which wget >/dev/null || (apt-get update; apt-get install -y wget)
+
+            echo "deb [arch=amd64] http://apt.tcpcloud.eu/testing/ trusty main security extra tcp" > /etc/apt/sources.list
+            wget -O - http://apt.tcpcloud.eu/public.gpg | apt-key add -
+
+            apt-get clean
+            apt-get update
+            apt-get install -y salt-minion
+
+            echo "id: $node_name" >> /etc/salt/minion
+            echo "master: $config_host" >> /etc/salt/minion
+            rm -f /etc/salt/pki/minion/minion_master.pub
+            service salt-minion restart
+
+            i=1
+            while [ $i -lt 31 ]; do
+                if salt-call test.ping | grep "True" > /dev/null 2>&1; then
+                    echo "[ Try: $i/30 ] Waiting for config node to become available ..."
+                    sleep 20
+                else
+                    echo "Config node ready!"
+                    break
+                fi
+            done
+          params:
+            $node_name: { get_param: cmp01_name }
+            $config_host: { get_param: config_host }
+  prx01_floating_ip:
+    type: OS::Nova::FloatingIP
+    properties:
+      pool: { get_param: public_net_id }
+  prx01_floating_ip_association:
+    type: OS::Nova::FloatingIPAssociation
+    properties:
+      floating_ip: { get_resource: prx01_floating_ip }
+      server_id: { get_resource: prx01_instance }
+  prx01_port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_resource: private_net }
+      fixed_ips:
+        - ip_address: 10.10.10.203
+      security_groups:
+        - default
+        - { get_resource: security_group }
+  prx01_instance:
+    type: OS::Nova::Server
+    properties:
+      image: { get_param: instance_image }
+      flavor: { get_param: instance_flavor_support }
+      key_name: { get_resource: keypair }
+      name: { get_param: prx01_name }
+      networks:
+      - port: { get_resource: prx01_port }
+      user_data_format: RAW
+      user_data:
+        str_replace:
+          template: |
+            #!/bin/bash
+            echo "Preparing base OS"
+            which wget >/dev/null || (apt-get update; apt-get install -y wget)
+
+            echo "deb [arch=amd64] http://apt.tcpcloud.eu/testing/ trusty main security extra tcp" > /etc/apt/sources.list
+            wget -O - http://apt.tcpcloud.eu/public.gpg | apt-key add -
+
+            apt-get clean
+            apt-get update
+            apt-get install -y salt-minion
+
+            echo "id: $node_name" >> /etc/salt/minion
+            echo "master: $config_host" >> /etc/salt/minion
+            rm -f /etc/salt/pki/minion/minion_master.pub
+            service salt-minion restart
+
+            i=1
+            while [ $i -lt 31 ]; do
+                if [[ -z $(salt-call test.ping | grep "True") ]]; then
+                    echo "[ Try: $i/30 ] Waiting for config node to become available ..."
+                    sleep 20
+                else
+                    echo "Config node ready!"
+                    break
+                fi
+            done
+          params:
+            $node_name: { get_param: prx01_name }
+            $config_host: { get_param: config_host }
+
