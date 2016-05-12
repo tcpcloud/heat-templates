@@ -161,8 +161,12 @@ resources:
             apt-get clean
             apt-get update
 
+            if [ -x "`which invoke-rc.d 2>/dev/null`" -a -x "/etc/init.d/salt-minion" ] ; then
+              apt-get purge -y salt-minion salt-common && apt-get autoremove -y
+            fi
+
             echo "Configuring salt master ..."
-            apt-get install -y python-pip python-dev zlib1g-dev reclass
+            apt-get install -y python-pip python-dev zlib1g-dev reclass git
             if [[ $salt_version -eq "latest" ]]; then
               pip install salt
             else
@@ -174,17 +178,17 @@ resources:
 
             echo "Getting salt formulas ..."
             [ ! -d /usr/share/salt-formulas/env/_formulas ] && mkdir -p /usr/share/salt-formulas/env/_formulas
-            ssh-keyscan -H -t ecdsa github.com >> /root/.ssh/known_hosts
-            git clone git@github.com:tcpcloud/salt-formula-linux.git /usr/share/salt-formulas/env/_formulas/linux -b $formulas_branch
-            git clone git@github.com:tcpcloud/salt-formula-reclass.git /usr/share/salt-formulas/env/_formulas/reclass -b $formulas_branch
-            git clone git@github.com:tcpcloud/salt-formula-salt.git /usr/share/salt-formulas/env/_formulas/salt -b $formulas_branch
-            git clone git@github.com:tcpcloud/salt-formula-openssh.git /usr/share/salt-formulas/env/_formulas/openssh -b $formulas_branch
-            git clone git@github.com:tcpcloud/salt-formula-git.git /usr/share/salt-formulas/env/_formulas/git -b $formulas_branch
-            git clone git@github.com:tcpcloud/salt-formula-ntp.git /usr/share/salt-formulas/env/_formulas/ntp -b $formulas_branch
-            git clone git@github.com:tcpcloud/salt-formula-graphite.git /usr/share/salt-formulas/env/_formulas/graphite -b $formulas_branch
-            git clone git@github.com:tcpcloud/salt-formula-collectd.git /usr/share/salt-formulas/env/_formulas/collectd -b $formulas_branch
-            git clone git@github.com:tcpcloud/salt-formula-sensu.git /usr/share/salt-formulas/env/_formulas/sensu -b $formulas_branch
-            git clone git@github.com:tcpcloud/salt-formula-heka.git /usr/share/salt-formulas/env/_formulas/heka -b $formulas_branch
+            ssh-keyscan -H -t rsa github.com >> /root/.ssh/known_hosts
+            git clone https://github.com/tcpcloud/salt-formula-linux.git /usr/share/salt-formulas/env/_formulas/linux -b $formulas_branch
+            git clone https://github.com/tcpcloud/salt-formula-reclass.git /usr/share/salt-formulas/env/_formulas/reclass -b $formulas_branch
+            git clone https://github.com/tcpcloud/salt-formula-salt.git /usr/share/salt-formulas/env/_formulas/salt -b $formulas_branch
+            git clone https://github.com/tcpcloud/salt-formula-openssh.git /usr/share/salt-formulas/env/_formulas/openssh -b $formulas_branch
+            git clone https://github.com/tcpcloud/salt-formula-git.git /usr/share/salt-formulas/env/_formulas/git -b $formulas_branch
+            git clone https://github.com/tcpcloud/salt-formula-ntp.git /usr/share/salt-formulas/env/_formulas/ntp -b $formulas_branch
+            git clone https://github.com/tcpcloud/salt-formula-graphite.git /usr/share/salt-formulas/env/_formulas/graphite -b $formulas_branch
+            git clone https://github.com/tcpcloud/salt-formula-collectd.git /usr/share/salt-formulas/env/_formulas/collectd -b $formulas_branch
+            git clone https://github.com/tcpcloud/salt-formula-sensu.git /usr/share/salt-formulas/env/_formulas/sensu -b $formulas_branch
+            git clone https://github.com/tcpcloud/salt-formula-heka.git /usr/share/salt-formulas/env/_formulas/heka -b $formulas_branch
             git clone $reclass_address /srv/salt/reclass -b $reclass_branch
 
             echo "Configuring formula definitions ..."
@@ -213,11 +217,11 @@ resources:
             ln -s /usr/share/salt-formulas/env/_formulas/heka/metadata/service /srv/salt/reclass/classes/service/heka
 
             # Temporary until multi-site horizon is deployed on salt master
-            git clone git@github.com:tcpcloud/salt-formula-nginx.git /usr/share/salt-formulas/env/_formulas/nginx -b $formulas_branch
+            git clone https://github.com/tcpcloud/salt-formula-nginx.git /usr/share/salt-formulas/env/_formulas/nginx -b $formulas_branch
             git clone git@github.com:openstack/salt-formula-horizon.git /usr/share/salt-formulas/env/_formulas/horizon -b $formulas_branch
-            git clone git@github.com:tcpcloud/salt-formula-memcached.git /usr/share/salt-formulas/env/_formulas/memcached -b $formulas_branch
-            git clone git@github.com:tcpcloud/salt-formula-python.git /usr/share/salt-formulas/env/_formulas/python -b $formulas_branch
-            git clone git@github.com:tcpcloud/salt-formula-supervisor.git /usr/share/salt-formulas/env/_formulas/supervisor -b $formulas_branch
+            git clone https://github.com/tcpcloud/salt-formula-memcached.git /usr/share/salt-formulas/env/_formulas/memcached -b $formulas_branch
+            git clone https://github.com/tcpcloud/salt-formula-python.git /usr/share/salt-formulas/env/_formulas/python -b $formulas_branch
+            git clone https://github.com/tcpcloud/salt-formula-supervisor.git /usr/share/salt-formulas/env/_formulas/supervisor -b $formulas_branch
 
             ln -s /usr/share/salt-formulas/env/_formulas/nginx/nginx /usr/share/salt-formulas/env/nginx
             ln -s /usr/share/salt-formulas/env/_formulas/horizon/horizon /usr/share/salt-formulas/env/horizon
@@ -337,6 +341,7 @@ resources:
             $reclass_branch: { get_param: reclass_branch }
             $formulas_branch: { get_param: formulas_branch }
             $config_host: localhost
+            $salt_version: { get_param: salt_version }
   ctl01_port:
     type: OS::Neutron::Port
     properties:
@@ -370,8 +375,20 @@ resources:
 
             apt-get clean
             apt-get update
-            apt-get install -y salt-minion
 
+            if [ -x "`which invoke-rc.d 2>/dev/null`" -a -x "/etc/init.d/salt-minion" ] ; then
+              apt-get purge -y salt-minion salt-common && apt-get autoremove -y
+            fi
+
+            echo "Configuring salt minion ..."
+            apt-get install -y python-pip python-dev zlib1g-dev
+            if [[ $salt_version -eq "latest" ]]; then
+              pip install salt
+            else
+              pip install salt==$salt_version
+            fi
+            wget -O /etc/init.d/salt-minion https://anonscm.debian.org/cgit/pkg-salt/salt.git/plain/debian/salt-minion.init && chmod 755 /etc/init.d/salt-minion
+            ln -s /usr/local/bin/salt-minion /usr/bin/salt-minion
             echo "id: $node_name" >> /etc/salt/minion
             echo "master: $config_host" >> /etc/salt/minion
             rm -f /etc/salt/pki/minion/minion_master.pub
@@ -381,6 +398,7 @@ resources:
             while [ $i -lt 31 ]; do
                 if salt-call test.ping | grep "True" > /dev/null 2>&1; then
                     echo "[ Try: $i/30 ] Waiting for config node to become available ..."
+                    (( i++ ))
                     sleep 20
                 else
                     echo "Config node ready!"
@@ -390,6 +408,7 @@ resources:
           params:
             $node_name: { get_param: ctl01_name }
             $config_host: { get_param: config_host }
+            $salt_version: { get_param: salt_version }
   cmp01_port:
     type: OS::Neutron::Port
     properties:
@@ -421,8 +440,20 @@ resources:
 
             apt-get clean
             apt-get update
-            apt-get install -y salt-minion
 
+            if [ -x "`which invoke-rc.d 2>/dev/null`" -a -x "/etc/init.d/salt-minion" ] ; then
+              apt-get purge -y salt-minion salt-common && apt-get autoremove -y
+            fi
+
+            echo "Configuring salt minion ..."
+            apt-get install -y python-pip python-dev zlib1g-dev
+            if [[ $salt_version -eq "latest" ]]; then
+              pip install salt
+            else
+              pip install salt==$salt_version
+            fi
+            wget -O /etc/init.d/salt-minion https://anonscm.debian.org/cgit/pkg-salt/salt.git/plain/debian/salt-minion.init && chmod 755 /etc/init.d/salt-minion
+            ln -s /usr/local/bin/salt-minion /usr/bin/salt-minion
             echo "id: $node_name" >> /etc/salt/minion
             echo "master: $config_host" >> /etc/salt/minion
             rm -f /etc/salt/pki/minion/minion_master.pub
@@ -432,6 +463,7 @@ resources:
             while [ $i -lt 31 ]; do
                 if salt-call test.ping | grep "True" > /dev/null 2>&1; then
                     echo "[ Try: $i/30 ] Waiting for config node to become available ..."
+                    (( i++ ))
                     sleep 20
                 else
                     echo "Config node ready!"
@@ -441,6 +473,7 @@ resources:
           params:
             $node_name: { get_param: cmp01_name }
             $config_host: { get_param: config_host }
+            $salt_version: { get_param: salt_version }
   prx01_floating_ip:
     type: OS::Nova::FloatingIP
     properties:
@@ -481,8 +514,20 @@ resources:
 
             apt-get clean
             apt-get update
-            apt-get install -y salt-minion
 
+            if [ -x "`which invoke-rc.d 2>/dev/null`" -a -x "/etc/init.d/salt-minion" ] ; then
+              apt-get purge -y salt-minion salt-common && apt-get autoremove -y
+            fi
+
+            echo "Configuring salt minion ..."
+            apt-get install -y python-pip python-dev zlib1g-dev
+            if [[ $salt_version -eq "latest" ]]; then
+              pip install salt
+            else
+              pip install salt==$salt_version
+            fi
+            wget -O /etc/init.d/salt-minion https://anonscm.debian.org/cgit/pkg-salt/salt.git/plain/debian/salt-minion.init && chmod 755 /etc/init.d/salt-minion
+            ln -s /usr/local/bin/salt-minion /usr/bin/salt-minion
             echo "id: $node_name" >> /etc/salt/minion
             echo "master: $config_host" >> /etc/salt/minion
             rm -f /etc/salt/pki/minion/minion_master.pub
@@ -490,8 +535,9 @@ resources:
 
             i=1
             while [ $i -lt 31 ]; do
-                if [[ -z $(salt-call test.ping | grep "True") ]]; then
+                if [[ -z $(salt-call test.png | grep "True") ]]; then
                     echo "[ Try: $i/30 ] Waiting for config node to become available ..."
+                    (( i++ ))
                     sleep 20
                 else
                     echo "Config node ready!"
@@ -501,4 +547,5 @@ resources:
           params:
             $node_name: { get_param: prx01_name }
             $config_host: { get_param: config_host }
+            $salt_version: { get_param: salt_version }
 
