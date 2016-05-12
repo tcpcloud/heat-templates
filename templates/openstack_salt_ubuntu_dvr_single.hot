@@ -23,16 +23,16 @@ parameters:
     default: 10.10.10.200
   cfg01_name:
     type: string
-    default: config.openstack.local
+    default: config.openstack-dvr.local
   ctl01_name:
     type: string
-    default: control.openstack.local
+    default: control.openstack-dvr.local
   cmp01_name:
     type: string
-    default: compute.openstack.local
+    default: compute.openstack-dvr.local
   prx01_name:
     type: string
-    default: proxy.openstack.local
+    default: proxy.openstack-dvr.local
   cluster_vip_address:
     type: string
     default: 10.10.10.254
@@ -288,15 +288,15 @@ resources:
 
             i=1
             while [ $i -lt 31 ]; do 
-                if salt 'control.openstack.local' test.ping | grep "True" > /dev/null 2>&1; then 
+                if salt 'control.openstack-dvr.local' test.ping | grep "True" > /dev/null 2>&1; then 
                     echo "Configuring control node ..."
                     # Basic configuration
-                    salt 'control.openstack.local' --no-color state.sls linux,openssh,salt
+                    salt 'control.openstack-dvr.local' --no-color state.sls linux,openssh,salt
                     sleep 30
                     # Infrastructure services deployment
-                    salt 'control.openstack.local' --no-color state.sls mysql,rabbitmq
+                    salt 'control.openstack-dvr.local' --no-color state.sls mysql,rabbitmq
                     # OpenStack and OpenContrail deployment
-                    salt 'control.openstack.local' --no-color state.highstate
+                    salt 'control.openstack-dvr.local' --no-color state.highstate
                     break
                 else 
                     echo "[ Try: $i/30 ] Waiting for control node to become available ..."
@@ -307,11 +307,11 @@ resources:
 
             i=1
             while [ $i -lt 31 ]; do
-                if salt 'compute.openstack.local' test.ping | grep "True" > /dev/null 2>&1; then
+                if salt 'compute.openstack-dvr.local' test.ping | grep "True" > /dev/null 2>&1; then
                     echo "Configuring compute node ..."
-                    salt 'compute.openstack.local' --no-color state.sls linux,openssh,salt
+                    salt 'compute.openstack-dvr.local' --no-color state.sls linux,openssh,salt
                     sleep 30
-                    salt 'compute.openstack.local' --no-color state.highstate 
+                    salt 'compute.openstack-dvr.local' --no-color state.highstate 
                     break
                 else 
                     echo "[ Try: $i/30 ] Waiting for compute node to become available ..."
@@ -322,11 +322,11 @@ resources:
 
             i=1
             while [ $i -lt 31 ]; do
-                if salt 'proxy.openstack.local' test.ping | grep "True" > /dev/null 2>&1; then
+                if salt 'proxy.openstack-dvr.local' test.ping | grep "True" > /dev/null 2>&1; then
                     echo "Configuring proxy node ..."
-                    salt 'proxy.openstack.local' --no-color state.sls linux,openssh,salt
+                    salt 'proxy.openstack-dvr.local' --no-color state.sls linux,openssh,salt
                     sleep 30
-                    salt 'proxy.openstack.local' --no-color state.highstate 
+                    salt 'proxy.openstack-dvr.local' --no-color state.highstate 
                     break 
                 else 
                     echo "[ Try: $i/30 ] Waiting for proxy node to become available ..."
