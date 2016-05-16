@@ -318,6 +318,7 @@ resources:
             while [ $i -lt 31 ]; do
                 if salt-call test.ping | grep "True" > /dev/null 2>&1; then
                     echo "[ Try: $i/30 ] Waiting for config node to become available ..."
+                    (( i++ ))
                     sleep 20
                 else
                     echo "Config node ready!"
@@ -369,6 +370,7 @@ resources:
             while [ $i -lt 31 ]; do
                 if salt-call test.ping | grep "True" > /dev/null 2>&1; then
                     echo "[ Try: $i/30 ] Waiting for config node to become available ..."
+                    (( i++ ))
                     sleep 20
                 else
                     echo "Config node ready!"
@@ -429,6 +431,7 @@ resources:
             while [ $i -lt 31 ]; do
                 if [[ -z $(salt-call test.ping | grep "True") ]]; then
                     echo "[ Try: $i/30 ] Waiting for config node to become available ..."
+                    (( i++ ))
                     sleep 20
                 else
                     echo "Config node ready!"

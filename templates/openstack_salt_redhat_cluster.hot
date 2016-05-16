@@ -326,6 +326,7 @@ resources:
             while [ $i -lt 16 ]; do
                 if [[ -z $(salt-call test.ping | grep "True") ]]; then
                     echo "[ Try: $i/15 ] Waiting for config node to become available ..."
+                    (( i++ ))
                     sleep 20
                 else
                     echo "Config node ready!"
@@ -379,6 +380,7 @@ resources:
             while [ $i -lt 16 ]; do
                 if [[ -z $(salt-call test.ping | grep "True") ]]; then
                     echo "[ Try: $i/15 ] Waiting for config node to become available ..."
+                    (( i++ ))
                     sleep 20
                 else
                     echo "Config node ready!"
@@ -432,6 +434,7 @@ resources:
             while [ $i -lt 16 ]; do
                 if [[ -z $(salt-call test.ping | grep "True") ]]; then
                     echo "[ Try: $i/15 ] Waiting for config node to become available ..."
+                    (( i++ ))
                     sleep 20
                 else
                     echo "Config node ready!"
@@ -483,6 +486,7 @@ resources:
             while [ $i -lt 16 ]; do
                 if [[ -z $(salt-call test.ping | grep "True") ]]; then
                     echo "[ Try: $i/15 ] Waiting for config node to become available ..."
+                    (( i++ ))
                     sleep 20
                 else
                     echo "Config node ready!"
@@ -534,6 +538,7 @@ resources:
             while [ $i -lt 16 ]; do
                 if [[ -z $(salt-call test.ping | grep "True") ]]; then
                     echo "[ Try: $i/15 ] Waiting for config node to become available ..."
+                    (( i++ ))
                     sleep 20
                 else
                     echo "Config node ready!"
@@ -594,6 +599,7 @@ resources:
             while [ $i -lt 16 ]; do
                 if [[ -z $(salt-call test.ping | grep "True") ]]; then
                     echo "[ Try: $i/15 ] Waiting for config node to become available ..."
+                    (( i++ ))
                     sleep 20
                 else
                     echo "Config node ready!"
