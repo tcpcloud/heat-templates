@@ -27,9 +27,18 @@ parameters:
   reclass_branch:
     type: string
     default: master
-  reclass_system:
+  os_version:
     type: string
-    default: ubuntu_opencontrail_single
+    default: kilo
+  os_distribution:
+    type: string
+    default: ubuntu
+  os_networking:
+    type: string
+    default: opencontrail
+  os_deployment:
+    type: string
+    default: single
   config_hostname:
     type: string
     default: config
@@ -203,7 +212,7 @@ resources:
             $FORMULA_BRANCH: { get_param: formula_branch }
             $RECLASS_ADDRESS: { get_param: reclass_address }
             $RECLASS_BRANCH: { get_param: reclass_branch }
-            $RECLASS_SYSTEM: { get_param: reclass_system }
+            $RECLASS_SYSTEM: { list_join: [ '_', [ { get_param: os_version }, { get_param: os_distribution }, { get_param: os_networking }, { get_param: os_deployment } ]] }
             $CONFIG_HOSTNAME: { get_param: config_hostname }
             $CONFIG_DOMAIN: { get_param: config_domain }
             $CONFIG_HOST: { list_join: [ '.', [ { get_param: config_hostname }, { get_param: config_domain } ]] }
