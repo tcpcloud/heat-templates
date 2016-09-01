@@ -28,7 +28,10 @@ parameters:
     default: control.openstack.local
   cmp01_name:
     type: string
-    default: compute.openstack.local
+    default: compute01.openstack.local
+  cmp02_name:
+    type: string
+    default: compute02.openstack.local
   prx01_name:
     type: string
     default: proxy.openstack.local
@@ -243,14 +246,29 @@ resources:
 
             i=1
             while [ $i -lt 31 ]; do
-                if salt 'compute.openstack.local' test.ping | grep "True" > /dev/null 2>&1; then
+                if salt 'compute01.openstack.local' test.ping | grep "True" > /dev/null 2>&1; then
                     echo "Configuring compute node ..."
-                    salt 'compute.openstack.local' --no-color state.sls linux,openssh,salt
+                    salt 'compute01.openstack.local' --no-color state.sls linux,openssh,salt
                     sleep 30
-                    salt 'compute.openstack.local' --no-color state.highstate 
+                    salt 'compute01.openstack.local' --no-color state.highstate 
                     break
                 else 
-                    echo "[ Try: $i/30 ] Waiting for compute node to become available ..."
+                    echo "[ Try: $i/30 ] Waiting for compute01 node to become available ..."
+                    (( i++ )) 
+                    sleep 20
+                fi  
+            done 
+
+            i=1
+            while [ $i -lt 31 ]; do
+                if salt 'compute02.openstack.local' test.ping | grep "True" > /dev/null 2>&1; then
+                    echo "Configuring compute node ..."
+                    salt 'compute02.openstack.local' --no-color state.sls linux,openssh,salt
+                    sleep 30
+                    salt 'compute02.openstack.local' --no-color state.highstate 
+                    break
+                else 
+                    echo "[ Try: $i/30 ] Waiting for compute02 node to become available ..."
                     (( i++ )) 
                     sleep 20
                 fi  
@@ -384,6 +402,59 @@ resources:
             done
           params:
             $node_name: { get_param: cmp01_name }
+            $config_host: { get_param: config_host }
+  cmp02_port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_resource: private_net }
+      fixed_ips:
+        - ip_address: 10.10.10.204
+      security_groups:
+        - default
+        - { get_resource: security_group }
+  cmp02_instance:
+    type: OS::Nova::Server
+    properties:
+      availability_zone: { get_param: availability_zone }
+      image: { get_param: instance_image }
+      flavor: { get_param: instance_flavor_compute }
+      key_name: { get_resource: keypair }
+      name: { get_param: cmp02_name }
+      networks:
+      - port: { get_resource: cmp02_port }
+      user_data_format: RAW
+      user_data:
+        str_replace:
+          template: |
+            #!/bin/bash
+            echo "Preparing base OS"
+            which wget >/dev/null || (apt-get update; apt-get install -y wget)
+
+            echo "deb [arch=amd64] http://apt.tcpcloud.eu/nightly/ trusty main security extra tcp" > /etc/apt/sources.list
+            wget -O - http://apt.tcpcloud.eu/public.gpg | apt-key add -
+
+            apt-get clean
+            apt-get update
+            apt-get install -y salt-minion
+
+            echo "id: $node_name" >> /etc/salt/minion
+            echo "master: $config_host" >> /etc/salt/minion
+            rm -f /etc/salt/pki/minion/minion_master.pub
+            service salt-minion restart
+
+            i=1
+            while [ $i -lt 31 ]; do
+                if salt-call test.ping | grep "True" > /dev/null 2>&1; then
+                    echo "[ Try: $i/30 ] Waiting for config node to become available ..."
+                    (( i++ ))
+                    sleep 20
+                else
+                    echo "Config node ready!"
+                    break
+                fi
+            done
+          params:
+            $node_name: { get_param: cmp02_name }
             $config_host: { get_param: config_host }
   prx01_floating_ip:
     type: OS::Nova::FloatingIP
