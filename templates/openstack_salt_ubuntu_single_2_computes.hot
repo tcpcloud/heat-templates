@@ -155,64 +155,21 @@ resources:
         str_replace:
           template: |
             #!/bin/bash
+
+            export FORMULA_SOURCE=pkg
+            export RECLASS_ADDRESS=$reclass_address
+            export RECLASS_BRANCH=$reclass_branch
+            export SALT_MASTER=$config_host
+            export DOMAIN=openstack.local
+            export APT_REPOSITORY_TAGS="main extra tcp-salt security"
+            export MINION_ID=$node_name
+
+
             echo "Preparing base OS"
-            which wget >/dev/null || (apt-get update; apt-get install -y wget)
+            curl -skL "https://raw.githubusercontent.com/tcpcloud/salt-bootstrap-test/master/bootstrap.sh" > bootstrap.sh
+            chmod +x ./bootstrap.sh 
 
-            echo "deb [arch=amd64] http://apt.tcpcloud.eu/nightly/ trusty main security extra tcp tcp-salt" > /etc/apt/sources.list
-            wget -O - http://apt.tcpcloud.eu/public.gpg | apt-key add -
-
-            apt-get clean
-            apt-get update
-
-            echo "Configuring salt master ..."
-            apt-get install -y salt-master reclass
-            apt-get install -y salt-formula-linux salt-formula-reclass salt-formula-salt salt-formula-openssh salt-formula-ntp salt-formula-git salt-formula-graphite salt-formula-collectd salt-formula-sensu salt-formula-heka
-            # Temporary until multi-site horizon is deployed on salt master
-            apt-get install -y salt-formula-horizon salt-formula-nginx salt-formula-memcached salt-formula-python salt-formula-supervisor
-
-            cat << 'EOF' >> /etc/salt/master.d/master.conf
-            file_roots:
-              base:
-              - /usr/share/salt-formulas/env
-            pillar_opts: False
-            open_mode: True
-            reclass: &reclass
-              storage_type: yaml_fs
-              inventory_base_uri: /srv/salt/reclass
-            ext_pillar:
-              - reclass: *reclass
-            master_tops:
-              reclass: *reclass
-            EOF
-
-            echo "Configuring reclass ..."
-            git clone $reclass_address /srv/salt/reclass -b $reclass_branch
-            mkdir -p /srv/salt/reclass/classes/service
-
-            for i in /usr/share/salt-formulas/reclass/service/*; do
-              ln -s $i /srv/salt/reclass/classes/service/
-            done
-
-            [ ! -d /etc/reclass ] && mkdir /etc/reclass
-            cat << 'EOF' >> /etc/reclass/reclass-config.yml
-            storage_type: yaml_fs
-            pretty_print: True
-            output: yaml
-            inventory_base_uri: /srv/salt/reclass
-            EOF
-
-            echo "Configuring salt minion ..."
-            apt-get install -y salt-minion
-            [ ! -d /etc/salt/minion.d ] && mkdir -p /etc/salt/minion.d
-            cat << "EOF" >> /etc/salt/minion.d/minion.conf
-            id: $node_name
-            master: localhost
-            EOF
-
-            echo "Restarting services ..."
-            service salt-master restart
-            rm -f /etc/salt/pki/minion/minion_master.pub
-            service salt-minion restart
+            ./bootstrap.sh master
 
             echo "Showing system info and metadata ..."
             salt-call --no-color grains.items
@@ -322,19 +279,11 @@ resources:
           template: |
             #!/bin/bash
             echo "Preparing base OS"
-            which wget >/dev/null || (apt-get update; apt-get install -y wget)
+            curl -skL "https://raw.githubusercontent.com/tcpcloud/salt-bootstrap-test/master/bootstrap.sh" > bootstrap.sh
+            chmod +x bootstrap.sh
 
-            echo "deb [arch=amd64] http://apt.tcpcloud.eu/nightly/ trusty main security extra tcp" > /etc/apt/sources.list
-            wget -O - http://apt.tcpcloud.eu/public.gpg | apt-key add -
-
-            apt-get clean
-            apt-get update
-            apt-get install -y salt-minion
-
-            echo "id: $node_name" >> /etc/salt/minion
-            echo "master: $config_host" >> /etc/salt/minion
-            rm -f /etc/salt/pki/minion/minion_master.pub
-            service salt-minion restart
+            export APT_REPOSITORY_TAGS="main extra tcp-salt security"
+            SALT_MASTER=$config_host MINION_ID=$node_name ./bootstrap.sh minion
 
             i=1
             while [ $i -lt 31 ]; do
@@ -375,19 +324,11 @@ resources:
           template: |
             #!/bin/bash
             echo "Preparing base OS"
-            which wget >/dev/null || (apt-get update; apt-get install -y wget)
+            curl -skL "https://raw.githubusercontent.com/tcpcloud/salt-bootstrap-test/master/bootstrap.sh" > bootstrap.sh
+            chmod +x bootstrap.sh
 
-            echo "deb [arch=amd64] http://apt.tcpcloud.eu/nightly/ trusty main security extra tcp" > /etc/apt/sources.list
-            wget -O - http://apt.tcpcloud.eu/public.gpg | apt-key add -
-
-            apt-get clean
-            apt-get update
-            apt-get install -y salt-minion
-
-            echo "id: $node_name" >> /etc/salt/minion
-            echo "master: $config_host" >> /etc/salt/minion
-            rm -f /etc/salt/pki/minion/minion_master.pub
-            service salt-minion restart
+            export APT_REPOSITORY_TAGS="main extra tcp-salt security"
+            SALT_MASTER=$config_host MINION_ID=$node_name ./bootstrap.sh minion
 
             i=1
             while [ $i -lt 31 ]; do
@@ -428,19 +369,11 @@ resources:
           template: |
             #!/bin/bash
             echo "Preparing base OS"
-            which wget >/dev/null || (apt-get update; apt-get install -y wget)
+            curl -skL "https://raw.githubusercontent.com/tcpcloud/salt-bootstrap-test/master/bootstrap.sh" > bootstrap.sh
+            chmod +x bootstrap.sh
 
-            echo "deb [arch=amd64] http://apt.tcpcloud.eu/nightly/ trusty main security extra tcp" > /etc/apt/sources.list
-            wget -O - http://apt.tcpcloud.eu/public.gpg | apt-key add -
-
-            apt-get clean
-            apt-get update
-            apt-get install -y salt-minion
-
-            echo "id: $node_name" >> /etc/salt/minion
-            echo "master: $config_host" >> /etc/salt/minion
-            rm -f /etc/salt/pki/minion/minion_master.pub
-            service salt-minion restart
+            export APT_REPOSITORY_TAGS="main extra tcp-salt security"
+            SALT_MASTER=$config_host MINION_ID=$node_name ./bootstrap.sh minion
 
             i=1
             while [ $i -lt 31 ]; do
@@ -490,19 +423,11 @@ resources:
           template: |
             #!/bin/bash
             echo "Preparing base OS"
-            which wget >/dev/null || (apt-get update; apt-get install -y wget)
+            curl -skL "https://raw.githubusercontent.com/tcpcloud/salt-bootstrap-test/master/bootstrap.sh" > bootstrap.sh
+            chmod +x bootstrap.sh
 
-            echo "deb [arch=amd64] http://apt.tcpcloud.eu/nightly/ trusty main security extra tcp" > /etc/apt/sources.list
-            wget -O - http://apt.tcpcloud.eu/public.gpg | apt-key add -
-
-            apt-get clean
-            apt-get update
-            apt-get install -y salt-minion
-
-            echo "id: $node_name" >> /etc/salt/minion
-            echo "master: $config_host" >> /etc/salt/minion
-            rm -f /etc/salt/pki/minion/minion_master.pub
-            service salt-minion restart
+            export APT_REPOSITORY_TAGS="main extra tcp-salt security"
+            SALT_MASTER=$config_host MINION_ID=$node_name ./bootstrap.sh minion
 
             i=1
             while [ $i -lt 31 ]; do
