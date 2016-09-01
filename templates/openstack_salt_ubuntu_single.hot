@@ -1,6 +1,8 @@
 heat_template_version: 2013-05-23
 description: Base Heat stack with simple OS setup
 parameters:
+  availability_zone:
+    type: string
   key_name:
     type: string
     default: openstack_salt_ubuntu_single
@@ -138,6 +140,7 @@ resources:
   cfg01_instance:
     type: OS::Nova::Server
     properties:
+      availability_zone: { get_param: availability_zone }
       image: { get_param: instance_image }
       flavor: { get_param: instance_flavor }
       key_name: { get_resource: keypair }
@@ -288,6 +291,7 @@ resources:
   ctl01_instance:
     type: OS::Nova::Server
     properties:
+      availability_zone: { get_param: availability_zone }
       image: { get_param: instance_image }
       flavor: { get_param: instance_flavor_controller }
       key_name: { get_resource: keypair }
@@ -340,6 +344,7 @@ resources:
   cmp01_instance:
     type: OS::Nova::Server
     properties:
+      availability_zone: { get_param: availability_zone }
       image: { get_param: instance_image }
       flavor: { get_param: instance_flavor_compute }
       key_name: { get_resource: keypair }
@@ -401,6 +406,7 @@ resources:
   prx01_instance:
     type: OS::Nova::Server
     properties:
+      availability_zone: { get_param: availability_zone }
       image: { get_param: instance_image }
       flavor: { get_param: instance_flavor_support }
       key_name: { get_resource: keypair }
